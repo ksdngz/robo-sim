@@ -204,14 +204,19 @@ void mycontroller(const mjModel* m, mjData* d)
 //  // printf("%f %f \n",lhs[1], rhs[1]);
 //  // printf("******\n");
 //
-//  //control
-//  double Kp1 = 100, Kp2 = 100;
-//  double Kv1 = 10, Kv2 = 10;
-//  double qref1 = -0.5, qref2 = -1.6;
-//
-//  //PD control
-//  // d->qfrc_applied[0] = -Kp1*(d->qpos[0]-qref1)-Kv1*d->qvel[0];
-//  // d->qfrc_applied[1] = -Kp2*(d->qpos[1]-qref2)-Kv2*d->qvel[1];
+    //control
+    double Kp1 = -100, Kp2 = 100;
+//    double Kp1 = -200, Kp2 = 100;
+    double Kv1 = -40, Kv2 = 10;
+    double Ki1 = -1;
+//    double Ki1 = 0;
+    double qref1 = 0.0, qref2 = -1.6;
+    static double errSum =0;
+    errSum += d->qpos[1]-qref1;
+    //PD control
+    //d->qfrc_applied[0] =1;
+    d->qfrc_applied[0] = -Kp1*(d->qpos[1]-qref1)-Kv1*d->qvel[1] - Ki1*errSum;
+    // d->qfrc_applied[1] = -Kp2*(d->qpos[1]-qref2)-Kv2*d->qvel[1];
 //
 //  //coriolis + gravity + PD control
 //  // d->qfrc_applied[0] = f[0]-Kp1*(d->qpos[0]-qref1)-Kv1*d->qvel[0];
@@ -323,7 +328,7 @@ int main(int argc, const char** argv)
 
     //d->qpos[0] = 1;
     d->qpos[0] = 0;
-    d->qpos[1] = 0.17;
+    d->qpos[1] = 0.02;
     // use the first while condition if you want to simulate for a period.
     while( !glfwWindowShouldClose(window))
     {
