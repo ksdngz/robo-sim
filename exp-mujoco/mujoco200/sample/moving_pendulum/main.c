@@ -205,17 +205,19 @@ void mycontroller(const mjModel* m, mjData* d)
 //  // printf("******\n");
 //
     //control
-    double Kp1 = -100, Kp2 = 100;
-//    double Kp1 = -200, Kp2 = 100;
-    double Kv1 = -40, Kv2 = 10;
-    double Ki1 = -1;
-//    double Ki1 = 0;
-    double qref1 = 0.0, qref2 = -1.6;
+    double bp = d->sensordata[0];
+    double q1 = d->sensordata[1]; // instead of d->qpos[].
+    double qd1 = d->sensordata[1]; // instead of d->qvel[].
+    double* bCmdTrq = &d->qfrc_applied[0];
+    double Kp1 = 150;
+    double Kv1 = 20;
+    double Ki1 = 0.1;
+    double qref1 = 0.0;
     static double errSum =0;
-    errSum += d->qpos[1]-qref1;
+    errSum += q1-qref1;
     //PD control
     //d->qfrc_applied[0] =1;
-    d->qfrc_applied[0] = -Kp1*(d->qpos[1]-qref1)-Kv1*d->qvel[1] - Ki1*errSum;
+    *bCmdTrq = (Kp1*(q1-qref1) + Kv1*qd1 + Ki1*errSum);
     // d->qfrc_applied[1] = -Kp2*(d->qpos[1]-qref2)-Kv2*d->qvel[1];
 //
 //  //coriolis + gravity + PD control
