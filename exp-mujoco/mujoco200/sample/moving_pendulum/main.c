@@ -157,6 +157,8 @@ void save_data(const mjModel* m, mjData* d)
 //**************************
 void mycontroller(const mjModel* m, mjData* d)
 {
+    printf("%f %f %f \n",d->time, d->qpos[0],d->qpos[1]);
+
 /*
   //write control here
   mj_energyPos(m,d);
@@ -320,8 +322,8 @@ int main(int argc, const char** argv)
     init_save_data();
 
     //d->qpos[0] = 1;
-    d->qpos[0] = 0.5;
-    //d->qpos[1] = 0;
+    d->qpos[0] = 0;
+    d->qpos[1] = 0.17;
     // use the first while condition if you want to simulate for a period.
     while( !glfwWindowShouldClose(window))
     {
