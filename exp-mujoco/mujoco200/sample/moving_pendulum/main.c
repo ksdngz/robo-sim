@@ -11,7 +11,7 @@
 #include "string.h"
 
 //simulation end time
-double simend = 30;
+double simend = 60;
 
 #define ndof 2
 
@@ -157,7 +157,7 @@ void save_data(const mjModel* m, mjData* d)
 //**************************
 void mycontroller(const mjModel* m, mjData* d)
 {
-    printf("%f %f %f \n",d->time, d->qpos[0],d->qpos[1]);
+//    printf("%f %f %f \n",d->time, d->qpos[0],d->qpos[1]);
 
 /*
   //write control here
@@ -205,19 +205,24 @@ void mycontroller(const mjModel* m, mjData* d)
 //  // printf("******\n");
 //
     //control
-    double bp = d->sensordata[0];
-    double q1 = d->sensordata[1]; // instead of d->qpos[].
-    double qd1 = d->sensordata[1]; // instead of d->qvel[].
-    double* bCmdTrq = &d->qfrc_applied[0];
-    double Kp1 = 150;
-    double Kv1 = 20;
-    double Ki1 = 0.1;
-    double qref1 = 0.0;
-    static double errSum =0;
-    errSum += q1-qref1;
-    //PD control
-    //d->qfrc_applied[0] =1;
-    *bCmdTrq = (Kp1*(q1-qref1) + Kv1*qd1 + Ki1*errSum);
+    double bp = d->sensordata[0]; // position of base
+    double bpd = d->sensordata[1]; // velocity of base
+    double q1 = d->sensordata[2]; // instead of d->qpos[].
+    double qd1 = d->sensordata[3]; // instead of d->qvel[].
+    double* bCmdTrq = &d->qfrc_applied[0]; // command torque for base.
+
+    double k[] = {-1, -28.67667907, -2.15693845, -5.24435947}; //bp, q1, bpd, qd1 (caluculated by python-control)
+    *bCmdTrq = -(k[0]*bp + k[1]*q1 + k[2]*bpd + k[3]*qd1);
+
+//    double Kp1 = 150;
+//    double Kv1 = 20;
+//    double Ki1 = 0.1;
+//    double qref1 = 0.0;
+//    static double errSum =0;
+//    errSum += q1-qref1;
+//    //PD control
+//    //d->qfrc_applied[0] =1;
+//    *bCmdTrq = (Kp1*(q1-qref1) + Kv1*qd1 + Ki1*errSum);
     // d->qfrc_applied[1] = -Kp2*(d->qpos[1]-qref2)-Kv2*d->qvel[1];
 //
 //  //coriolis + gravity + PD control

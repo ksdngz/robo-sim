@@ -39,9 +39,10 @@
 		-->
 	</actuator>
 	<sensor>
-		<jointpos joint="base" noise="0.0"/>
-		<jointpos joint="j2" noise="0.05"/>
-		<jointvel joint="j2" noise="0.01" />
+		<jointpos joint="base" noise="0.5"/>
+		<jointvel joint="base" noise="1"/>
+		<jointpos joint="j2" noise="0.5"/>
+		<jointvel joint="j2" noise="1" />
 	</sensor>
 
 <!-- ======= Ground ======= 
