@@ -5,6 +5,35 @@
 - 学習とシミュレーションの組み合わせ
 - 
 
+## 倒立振子運動方程式
+$$ 
+\dot{\boldsymbol{x}} = A\boldsymbol{x}+B\boldsymbol{u}
+$$
+
+$$
+A=\left[
+\begin{array}{cccc}
+0 & 0 & 1 & 0 \\
+0 & 0 & 0 & 1\\
+0 & -\frac{3mg}{M} & -\frac{4d}{M} & 0\\
+0 & \frac{3(m_c+m)g}{Ml} & \frac{3D}{Ml} & 0 \\
+\end{array}
+\right],  
+B = \left[
+\begin{array}{c}
+0 \\
+0 \\
+\frac{4}{M} \\
+-\frac{3}{Ml} \\
+\end{array}
+\right] 
+$$ 
+
+ここで、 $M=4M_c+m$ である。
+
+
+
+
 
 ## mujocoシミュレーションの理解メモ
 
