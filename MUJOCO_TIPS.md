@@ -37,6 +37,10 @@ $$
 
 
 
+## その他
+- [mujoco-py](https://github.com/openai/mujoco-py)は開発終了のようである。今後は本流のpython bindingsに一本化される。
+  > mujoco-py does not support versions of MuJoCo after 2.1.0.
+
 
 ## mujocoシミュレーションの理解メモ
 
