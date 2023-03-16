@@ -15,7 +15,7 @@ A=\left[
 \begin{array}{cccc}
 0 & 0 & 1 & 0 \\
 0 & 0 & 0 & 1\\
-0 & -\frac{3mg}{M} & -\frac{4d}{M} & 0\\
+0 & -\frac{3mg}{M} & -\frac{4D}{M} & 0\\
 0 & \frac{3(m_c+m)g}{Ml} & \frac{3D}{Ml} & 0 \\
 \end{array}
 \right],  
