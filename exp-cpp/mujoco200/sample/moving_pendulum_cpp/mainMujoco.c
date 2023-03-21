@@ -317,7 +317,6 @@ int mainMujoco(int argc, const char** argv)
     glfwSetMouseButtonCallback(window, mouse_button);
     glfwSetScrollCallback(window, scroll);
 
-//    double arr_view[] = {89.608063, -11.588379, 5, 0.000000, 0.000000, 2.000000};
     double arr_view[] = {-90, -11.588379, 5, 0.000000, 0.000000, 2.000000};
     cam.azimuth = arr_view[0];
     cam.elevation = arr_view[1];
