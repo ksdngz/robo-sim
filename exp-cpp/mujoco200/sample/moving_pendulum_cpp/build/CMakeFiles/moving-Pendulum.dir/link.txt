@@ -1,0 +1,1 @@
+/usr/bin/c++    -rdynamic CMakeFiles/moving-Pendulum.dir/main.cpp.o CMakeFiles/moving-Pendulum.dir/mainMujoco.c.o  -o moving-Pendulum   -L/home/daimat/robo-sim/exp-cpp/mujoco/sample/moving_pendulum_cpp/../../bin  -Wl,-rpath,/home/daimat/robo-sim/exp-cpp/mujoco/sample/moving_pendulum_cpp/../../bin -lmujoco200 -lGL -lm -lglew -lglfw 
