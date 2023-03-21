@@ -2,8 +2,11 @@
 - 状態フィードバックとPD制御の関係
 - mujoco-py
 - 倒立振子運動方程式導出（ニュートン/ラグランジアン）を使用
+- 二重倒立振子
+- 倒立振子台車軌道生成
 - 学習とシミュレーションの組み合わせ
-- 
+- pythonモジュール化とctypes使用方法
+- mujoco(C++)呼び出し
 
 ## 倒立振子運動方程式
 $$ 
@@ -33,6 +36,10 @@ $$
 
 
 
+
+## その他
+- [mujoco-py](https://github.com/openai/mujoco-py)は開発終了のようである。今後は本流のpython bindingsに一本化される。
+  > mujoco-py does not support versions of MuJoCo after 2.1.0.
 
 
 ## mujocoシミュレーションの理解メモ

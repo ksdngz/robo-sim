@@ -15,6 +15,9 @@ Welcome to the robo-sim wiki!
     ```
     sudo apt -y install libglfw3-dev
     ```
+- [mujoco python bindings](https://mujoco.readthedocs.io/en/2.3.1/python.html#)
+  - mujocoをpythonから使用可能。mujoco-pyはサポート終了し、こちらに一本化される
+
 ## 初期設定
 ### wsl2環境にmujocoとGUI(XSrv)を導入する
 1. [リンク](https://qiita.com/momomo_rimoto/items/2841f1f15d364c2377a1)
