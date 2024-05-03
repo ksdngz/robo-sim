@@ -84,6 +84,41 @@ cd ~/.mujoco/mujoco200/bin
 MuJoCo Pro version 2.00
 ERROR: could not initialize GLFW
 ```
+## mujoco on Windows 環境構築
+`MuJoCo Python Bindings`を用いて環境構築を行う。
+
+### 事前設定
+* python3環境を構築済    
+    * python version
+        ```
+        Python 3.10.6 (tags/v3.10.6:9c7b4bd, Aug  1 2022, 21:53:49) [MSC v.1932 64 bit (AMD64)] on win32
+        Type "help", "copyright", "credits" or "license" for more information.
+        ```
+    * pip
+        ```
+        pip 22.2.1 from xxxxxxxxx\mujoco_env\lib\site-packages\pip (python 3.10)
+        ```
+### 手順
+1. `venv`で環境をつくる（任意）
+    ```
+    python -m venv mujoco_env
+    ; mujoco_envに環境をつくる
+    cd mujoco_env\Scripts
+    .\activate
+    ; 実行後、promptに(mujoco_env) が表示されればOK
+    ```
+1. pipでmujocoをインストール
+    ```
+    pip install mujoco
+    ```
+1. 動作確認
+    下記コマンド実行後、mujoco GUIが起動すればOK
+    ```
+    python -m mujoco.viewer
+    ```
+
+
+
 
 ### Tips
 - wslの再起動
