@@ -85,7 +85,9 @@ MuJoCo Pro version 2.00
 ERROR: could not initialize GLFW
 ```
 ## mujoco on Windows 環境構築
-`MuJoCo Python Bindings`を用いて環境構築を行う。
+環境構築が必要なソフトウェア
+* [MuJoCo Python Bindings](https://pypi.org/project/mujoco/)
+* [Robotics Toolbox for Python](https://pypi.org/project/roboticstoolbox-python/)
 
 ### 事前設定
 * python3環境を構築済    
@@ -98,7 +100,7 @@ ERROR: could not initialize GLFW
         ```
         pip 22.2.1 from xxxxxxxxx\mujoco_env\lib\site-packages\pip (python 3.10)
         ```
-### 手順
+### mujoco環境
 1. `venv`で環境をつくる（任意）
     ```
     python -m venv mujoco_env
@@ -116,12 +118,78 @@ ERROR: could not initialize GLFW
     ```
     python -m mujoco.viewer
     ```
+### robotics toolbox環境
+1. 下記コマンドを実行する。
+    ```
+    pip install roboticstoolbox-python
+    ```
+    * 上記mujoco環境構築後の`venv`作成後を想定
 
 
+2. 起動確認
+  * pythonで下記コマンドを実行する
+    ```
+    import roboticstoolbox as rtb
+    robot = rtb.models.Panda()
+    print(robot)
+    ```
+  * `Panda`の情報表示されればOK
+    ```
+    ERobot: panda (by Franka Emika), 7 joints (RRRRRRR), 1 gripper, geometry, collision
+    ┌─────┬──────────────┬───────┬─────────────┬────────────────────────────────────────────────┐
+    │link │     link     │ joint │   parent    │              ETS: parent to link               │
+    ├─────┼──────────────┼───────┼─────────────┼────────────────────────────────────────────────┤
+    │   0 │ panda_link0  │       │ BASE        │ SE3()                                          │
+    │   1 │ panda_link1  │     0 │ panda_link0 │ SE3(0, 0, 0.333) ⊕ Rz(q0)                      │
+    │   2 │ panda_link2  │     1 │ panda_link1 │ SE3(-90°, -0°, 0°) ⊕ Rz(q1)                    │
+    │   3 │ panda_link3  │     2 │ panda_link2 │ SE3(0, -0.316, 0; 90°, -0°, 0°) ⊕ Rz(q2)       │
+    │   4 │ panda_link4  │     3 │ panda_link3 │ SE3(0.0825, 0, 0; 90°, -0°, 0°) ⊕ Rz(q3)       │
+    │   5 │ panda_link5  │     4 │ panda_link4 │ SE3(-0.0825, 0.384, 0; -90°, -0°, 0°) ⊕ Rz(q4) │
+    │   6 │ panda_link6  │     5 │ panda_link5 │ SE3(90°, -0°, 0°) ⊕ Rz(q5)                     │
+    │   7 │ panda_link7  │     6 │ panda_link6 │ SE3(0.088, 0, 0; 90°, -0°, 0°) ⊕ Rz(q6)        │
+    │   8 │ @panda_link8 │       │ panda_link7 │ SE3(0, 0, 0.107)                               │
+    └─────┴──────────────┴───────┴─────────────┴────────────────────────────────────────────────┘
 
+    ┌─────┬─────┬────────┬─────┬───────┬─────┬───────┬──────┐
+    │name │ q0  │ q1     │ q2  │ q3    │ q4  │ q5    │ q6   │
+    ├─────┼─────┼────────┼─────┼───────┼─────┼───────┼──────┤
+    │  qr │  0° │ -17.2° │  0° │ -126° │  0° │  115° │  45° │
+    │  qz │  0° │  0°    │  0° │  0°   │  0° │  0°   │  0°  │
+    └─────┴─────┴────────┴─────┴───────┴─────┴───────┴──────┘
+    ```
+
+### その他
+```
+pip install control
+```
+
+#### memo
+* `import roboticstoolbox as rtb`で下記エラーメッセージが発生した
+  ```
+  ImportError: cannot import name 'randn' from 'scipy' (C:\Users\Dai Mat\mujoco\mujoco_env\lib\site-packages\scipy\__init__.py)
+  ```
+    * 現象発生時の`scipy`のversionは以下
+      > scipy                  1.13.0
+    * 暫定回避：`scipy`のダウングレードのため、下記コマンドを実行する
+      > pip install "scipy<1.12.0"
+    * Githubの[issue](https://github.com/petercorke/RVC3-python/issues/16)あり。
+
+
+## Panda armの導入
+* urdfの入手
+https://github.com/justagist/franka_panda_description
+
+* meshファイル内のdae/stlを.urdfと同じ階層ディレクトリに配置すること
 
 ### Tips
-- wslの再起動
-powershell(管理者権限)から`wsl.exe --shutdown`を実行する
+* wslの再起動
+  powershell(管理者権限)から`wsl.exe --shutdown`を実行する
 
+* powershellでのgrep相当操作
+  `Select-String`で代用可能
+  > pip list | Select-String "scipy"
 
+* pythonデバッグ on VSCodeで指定の実行環境(venv)を指定する
+  * VSCode下隅から環境を選択可能。指定するvenvが表示されない場合、フォルダから`Python.exe`のパスを指定すればよい。
+  * ![alt text](image.png)
+  * [参考リンク](https://qiita.com/watahani/items/7c1b3b6c470b2f08bf51) 
