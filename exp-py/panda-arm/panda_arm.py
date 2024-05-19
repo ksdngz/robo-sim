@@ -4,10 +4,70 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import control
+import threading
+import tkinter as tk
+
+# global settings
+np.set_printoptions(precision=2)
+
+
+# logging GUI
+
+class InState:
+    def __init__(self):
+        self.q = []
+        self.dq = []
+
+    def update(self, data):
+        self.q = ["{:.2f}".format(q_) for q_ in data.qpos]
+        self.dq = ["{:.2f}".format(dq_) for dq_ in data.qvel]
+
+class LoggerGUI:
+    def __init__(self, state: InState):
+        self.state = state
+        self.timer = 0 
+
+    def update(self):
+        self.label_q["text"] = ', '.join(map(str, self.state.q))
+        self.label_dq["text"] = ', '.join(map(str, self.state.dq))
+        self.window.after(1000, self.update)
+
+    def start(self):
+        self.running = True
+        self.window = tk.Tk()
+        self.window.title("Logger")
+        self.window.geometry('540x240')
+        # Frame
+        frame = tk.Frame(self.window)
+        frame.pack(fill = tk.BOTH, pady=10)
+        # Widget
+        self.label_q = tk.Label(frame)
+        self.label_q.pack()
+        self.label_dq = tk.Label(frame)
+        self.label_dq.pack()
+
+        self.update()
+        self.window.mainloop()
+        # need to delete variables that reference tkinter objects in the thread
+        del self.value
+        del self.window
+
+    def _check_to_quit(self):
+        if self.running:
+            self.window.after(1000, self._check_to_quit)
+        else:
+            self.window.destroy()
+
+    def quit(self):
+        self.running = False
+
+
 
 #xml_path = '2D_double_pendulum.xml' #xml file (assumes this is in the same folder as this file)
-xml_path = 'urdf/panda_arm.urdf' #xml file (assumes this is in the same folder as this file)
-simend = 10 #simulation time
+# xml_path = 'urdf/robot/panda_arm.urdf' #xml file (assumes this is in the same folder as this file)
+xml_path = 'urdf/robot/panda_arm_mjcf.xml' #xml file (assumes this is in the same folder as this file)
+
+simend = 100 #simulation time
 print_camera_config = 0 #set to 1 to print camera config
                         #this is useful for initializing view of the model)
 
@@ -102,20 +162,41 @@ def init_controller(model,data):
 def controller(model, data):
     #put the controller here. This function is called inside the simulation.
     # pass
-    global K
+    # global K
+    K =10000
+    body_id = model.jnt('panda_joint1').id    
 
     #1. apply congtrol u = -K*x
-    x = np.array([data.qpos[0],data.qpos[1],data.qvel[0],data.qvel[1]])
-    u = -K.dot(x)
-    data.ctrl[0] = u
+#    x = np.array([data.qpos[0],data.qpos[1],data.qvel[0],data.qvel[1]])
+#    u = -K.dot(x)
+    u = -K * data.qpos[0]
+    global gCount
+    if gCount % 1000 == 0:
+        q = np.array(data.qpos)
+        ctrl = np.array(data.ctrl)
+        qfrc = np.array(data.qfrc_bias)
+        print("q", q, "ctrl", ctrl, "qfrc", qfrc)
+    gCount = gCount+1     
+
+    for i in range(model.nu):
+        data.ctrl[i] = data.qfrc_bias[i]*0.7
+        
+#    data.ctrl[0] = u
+#    data.ctrl[0] = 400
+#    data.ctrl[1] = 400
+#    data.ctrl[2] = 400
+#    data.ctrl[3] = 400
+#    data.ctrl[4] = 400
+#    data.ctrl[5] = 400
+#    data.ctrl[6] = 400
 
     #2 apply disturbance torque
-    tau_disturb_mean = 0
-    tau_disturb_dev = 20
-    tau_d0 = np.random.normal(tau_disturb_mean,tau_disturb_dev)
-    tau_d1 = np.random.normal(tau_disturb_mean,0.25*tau_disturb_dev)
-    data.qfrc_applied[0] = tau_d0
-    data.qfrc_applied[1] = tau_d1
+#   tau_disturb_mean = 0
+#   tau_disturb_dev = 20
+#   tau_d0 = np.random.normal(tau_disturb_mean,tau_disturb_dev)
+#   tau_d1 = np.random.normal(tau_disturb_mean,0.25*tau_disturb_dev)
+#   data.qfrc_applied[0] = tau_d0
+#   data.qfrc_applied[1] = tau_d1
 
 def keyboard(window, key, scancode, act, mods):
     if act == glfw.PRESS and key == glfw.KEY_BACKSPACE:
@@ -187,6 +268,10 @@ def scroll(window, xoffset, yoffset):
     mj.mjv_moveCamera(model, action, 0.0, -0.05 *
                       yoffset, scene, cam)
 
+# definition
+global gCount
+gCount = 0
+
 #get the full path
 dirname = os.path.dirname(__file__)
 abspath = os.path.join(dirname, xml_path)
@@ -199,9 +284,19 @@ data = mj.MjData(model)                # MuJoCo data
 cam = mj.MjvCamera()                        # Abstract camera
 opt = mj.MjvOption()                        # visualization options
 
+# Init Internal State
+state = InState()
+state.q = [0 for _ in range(model.nu)]
+state.dq = [0 for _ in range(model.nu)]
+
+# Init LoggerGUI
+logger = LoggerGUI(state)
+loggerThread = threading.Thread(target=logger.start)
+loggerThread.start()
+
 # Init GLFW, create window, make OpenGL context current, request v-sync
 glfw.init()
-window = glfw.create_window(1200, 900, "Demo", None, None)
+window = glfw.create_window(1200, 900, "Visualizer", None, None)
 glfw.make_context_current(window)
 glfw.swap_interval(1)
 
@@ -230,14 +325,14 @@ cam.lookat =np.array([ 0.0 , 0.0 , 0.0 ])
 #init_controller(model,data)
 
 #set the controller
-## temporary disabled
-#mj.set_mjcb_control(controller)
+mj.set_mjcb_control(controller)
 
 while not glfw.window_should_close(window):
     time_prev = data.time
 
     while (data.time - time_prev < 1.0/60.0):
         mj.mj_step(model, data)
+        state.update(data)
 
     if (data.time>=simend):
         break;
