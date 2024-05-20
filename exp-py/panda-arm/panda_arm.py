@@ -6,6 +6,7 @@ import os
 import control
 import threading
 import tkinter as tk
+import tkinter.ttk as ttk
 
 # global settings
 np.set_printoptions(precision=2)
@@ -14,22 +15,29 @@ np.set_printoptions(precision=2)
 # logging GUI
 
 class InState:
-    def __init__(self):
-        self.q = []
-        self.dq = []
+    def __init__(self, qSize):
+        self.q_ = [0]*qSize
+        self.dq_ = [0]*qSize
+        self.qsize_ = qSize
 
     def update(self, data):
-        self.q = ["{:.2f}".format(q_) for q_ in data.qpos]
-        self.dq = ["{:.2f}".format(dq_) for dq_ in data.qvel]
+        self.q_ = ["{:.2f}".format(q) for q in data.qpos]
+        self.dq_ = ["{:.2f}".format(dq) for dq in data.qvel]
 
 class LoggerGUI:
     def __init__(self, state: InState):
-        self.state = state
-        self.timer = 0 
+        self.state_ = state
+        self.timer_ = 0 
 
     def update(self):
-        self.label_q["text"] = ', '.join(map(str, self.state.q))
-        self.label_dq["text"] = ', '.join(map(str, self.state.dq))
+        self.tree.delete()
+        qsize = len(self.state_.q_)
+        qnames = ['q'+str(num+1) for num in range(qsize)]
+        for i in reversed(range(0, qsize)):
+            self.tree.insert('',   #parent:レコード追加時空文字を指定
+                        '0',  #index:文字列の挿入位置を先頭（0）に
+                        values=(qnames[i], self.state_.q_[i], self.state_.dq_[i])
+                        )
         self.window.after(1000, self.update)
 
     def start(self):
@@ -37,15 +45,37 @@ class LoggerGUI:
         self.window = tk.Tk()
         self.window.title("Logger")
         self.window.geometry('540x240')
+
         # Frame
         frame = tk.Frame(self.window)
         frame.pack(fill = tk.BOTH, pady=10)
-        # Widget
-        self.label_q = tk.Label(frame)
-        self.label_q.pack()
-        self.label_dq = tk.Label(frame)
-        self.label_dq.pack()
 
+        # TreeView
+        self.tree = ttk.Treeview(self.window,
+                    columns=(1,2,3),  #列の作成：3列作成、タプルで識別名を指定
+                    show='headings'   #ヘッダーの設定
+                    )
+        self.tree.column(1, width=100, anchor='center')
+        self.tree.column(2, width=100, anchor='center')
+        self.tree.column(3, width=100, anchor='center')
+        self.tree.heading(1, text='name')
+        self.tree.heading(2, text='q')
+        self.tree.heading(3, text='dq')
+
+        x_set = 10 #x方向の座標
+        y_set = 10 #y方向の座標
+        height = 240 #ウィジェットの高さ
+        self.tree.place(x=x_set, y=y_set, height=height) #配置
+
+        qsize = self.state_.qsize_
+        qnames = ['q'+str(num+1) for num in range(qsize)]
+        for i in reversed(range(0, qsize)):
+            self.tree.insert('',   #parent:レコード追加時空文字を指定
+                        '0',  #index:文字列の挿入位置を先頭（0）に
+                        values=(qnames[i], self.state_.q_[i], self.state_.dq_[i])
+                        )
+
+        # Widget
         self.update()
         self.window.mainloop()
         # need to delete variables that reference tkinter objects in the thread
@@ -179,7 +209,7 @@ def controller(model, data):
     gCount = gCount+1     
 
     for i in range(model.nu):
-        data.ctrl[i] = data.qfrc_bias[i]*0.7
+        data.ctrl[i] = data.qfrc_bias[i] *0.7
         
 #    data.ctrl[0] = u
 #    data.ctrl[0] = 400
@@ -285,9 +315,7 @@ cam = mj.MjvCamera()                        # Abstract camera
 opt = mj.MjvOption()                        # visualization options
 
 # Init Internal State
-state = InState()
-state.q = [0 for _ in range(model.nu)]
-state.dq = [0 for _ in range(model.nu)]
+state = InState(model.nu)
 
 # Init LoggerGUI
 logger = LoggerGUI(state)
@@ -323,6 +351,8 @@ cam.lookat =np.array([ 0.0 , 0.0 , 0.0 ])
 #initialize the controller
 ## temporary disabled
 #init_controller(model,data)
+
+data.qpos[1] = 1.3
 
 #set the controller
 mj.set_mjcb_control(controller)

@@ -1,6 +1,25 @@
 # robo-sim
 
-Welcome to the robo-sim wiki!
+Welcome to the robo-sim.
+### panda-arm task
+* アーム初期姿勢を設定する
+* アームをGUIから任意位置へ変換できるようにする
+* Controller設計
+  * PyDrake導入
+  * 重力補償器
+  * 手先インピーダンス
+  * 経路・軌道計画
+* 台車拡張
+#### optional
+* 動力学・運動学
+* KinematicTreeの解析
+* MujocoVisualizerの表示拡張
+
+#### 近くまとめる
+* urdf->mjdfの変換
+* 
+
+
 ### リンク
 - [github/mujoco](https://github.com/deepmind/mujoco)
 - [mujoco documentation](https://mujoco.readthedocs.io/en/latest/overview.html)
