@@ -12,8 +12,6 @@ import tkinter.ttk as ttk
 np.set_printoptions(precision=2)
 
 
-# logging GUI
-
 class InState:
     def __init__(self, qSize):
         self.q_ = [0]*qSize
@@ -21,23 +19,26 @@ class InState:
         self.qsize_ = qSize
 
     def update(self, data):
-        self.q_ = ["{:.2f}".format(q) for q in data.qpos]
-        self.dq_ = ["{:.2f}".format(dq) for dq in data.qvel]
+        self.q_ = ["{:.2f}".format(q) for q in np.rad2deg(data.qpos)]
+        self.dq_ = ["{:.2f}".format(dq) for dq in np.rad2deg(data.qvel)]
 
+# logging GUI
 class LoggerGUI:
     def __init__(self, state: InState):
         self.state_ = state
         self.timer_ = 0 
 
-    def update(self):
-        self.tree.delete()
-        qsize = len(self.state_.q_)
+    def __updateTree(self):
+        qsize = self.state_.qsize_
         qnames = ['q'+str(num+1) for num in range(qsize)]
         for i in reversed(range(0, qsize)):
-            self.tree.insert('',   #parent:レコード追加時空文字を指定
-                        '0',  #index:文字列の挿入位置を先頭（0）に
-                        values=(qnames[i], self.state_.q_[i], self.state_.dq_[i])
-                        )
+            self.tree.insert('',
+                        '0',
+                        values=(qnames[i], self.state_.q_[i], self.state_.dq_[i]))
+
+    def update(self):
+        self.tree.delete()
+        self.__updateTree()
         self.window.after(1000, self.update)
 
     def start(self):
@@ -59,27 +60,20 @@ class LoggerGUI:
         self.tree.column(2, width=100, anchor='center')
         self.tree.column(3, width=100, anchor='center')
         self.tree.heading(1, text='name')
-        self.tree.heading(2, text='q')
-        self.tree.heading(3, text='dq')
+        self.tree.heading(2, text='q[deg]')
+        self.tree.heading(3, text='dq[deg/s]')
 
         x_set = 10 #x方向の座標
         y_set = 10 #y方向の座標
         height = 240 #ウィジェットの高さ
         self.tree.place(x=x_set, y=y_set, height=height) #配置
 
-        qsize = self.state_.qsize_
-        qnames = ['q'+str(num+1) for num in range(qsize)]
-        for i in reversed(range(0, qsize)):
-            self.tree.insert('',   #parent:レコード追加時空文字を指定
-                        '0',  #index:文字列の挿入位置を先頭（0）に
-                        values=(qnames[i], self.state_.q_[i], self.state_.dq_[i])
-                        )
+        self.__updateTree()
 
         # Widget
         self.update()
         self.window.mainloop()
         # need to delete variables that reference tkinter objects in the thread
-        del self.value
         del self.window
 
     def _check_to_quit(self):
@@ -210,15 +204,6 @@ def controller(model, data):
 
     for i in range(model.nu):
         data.ctrl[i] = data.qfrc_bias[i] *0.7
-        
-#    data.ctrl[0] = u
-#    data.ctrl[0] = 400
-#    data.ctrl[1] = 400
-#    data.ctrl[2] = 400
-#    data.ctrl[3] = 400
-#    data.ctrl[4] = 400
-#    data.ctrl[5] = 400
-#    data.ctrl[6] = 400
 
     #2 apply disturbance torque
 #   tau_disturb_mean = 0
