@@ -183,6 +183,30 @@ def init_controller(model,data):
     K,S,E = control.lqr(A,B,Q,R)
     # print("K = ",K)
 
+
+class pidController:
+    def __init__(self, model, data, kp, kd, ki):
+        self.model = model
+        self.data = data
+        self.kp_ = kp
+        self.kd_ = kd
+        self.ki_ = ki
+        self.epre_ = [0]*self.model.nu
+        self.ie_ = [0]*self.model.nu
+        self.target = [0]*self.model.nu
+        self.T = 1
+
+    def controller(self, model, data):
+        e = self.target - data.qpos
+        de = (e - self.epre_)/self.T
+        self.ie_ = self.ie_ + (e+de)*self.T/2
+        u = self.kp_*e + self.kd_*de + self.ki_*self.ie_
+        ## set ctrl in mujoco
+        data.ctrl = u
+
+    def update(self, target):
+        self.target = target
+    
 def controller(model, data):
     #put the controller here. This function is called inside the simulation.
     # pass
@@ -193,17 +217,17 @@ def controller(model, data):
     #1. apply congtrol u = -K*x
 #    x = np.array([data.qpos[0],data.qpos[1],data.qvel[0],data.qvel[1]])
 #    u = -K.dot(x)
-    u = -K * data.qpos[0]
-    global gCount
-    if gCount % 1000 == 0:
-        q = np.array(data.qpos)
-        ctrl = np.array(data.ctrl)
-        qfrc = np.array(data.qfrc_bias)
-        print("q", q, "ctrl", ctrl, "qfrc", qfrc)
-    gCount = gCount+1     
+#    u = -K * data.qpos[0]
+#    global gCount
+#    if gCount % 1000 == 0:
+#        q = np.array(data.qpos)
+#        ctrl = np.array(data.ctrl)
+#        qfrc = np.array(data.qfrc_bias)
+#        print("q", q, "ctrl", ctrl, "qfrc", qfrc)
+#    gCount = gCount+1     
 
     for i in range(model.nu):
-        data.ctrl[i] = data.qfrc_bias[i] *0.7
+        data.ctrl[i] = data.qfrc_bias[i] *1
 
     #2 apply disturbance torque
 #   tau_disturb_mean = 0
@@ -316,6 +340,9 @@ glfw.swap_interval(1)
 # initialize visualization data structures
 mj.mjv_defaultCamera(cam)
 mj.mjv_defaultOption(opt)
+#opt.flags[mj.mjtVisFlag.mjVIS_JOINT] = True
+#opt.frame = mj.mjtFrame.mjFRAME_GEOM
+
 scene = mj.MjvScene(model, maxgeom=10000)
 context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150.value)
 
@@ -336,11 +363,16 @@ cam.lookat =np.array([ 0.0 , 0.0 , 0.0 ])
 #initialize the controller
 ## temporary disabled
 #init_controller(model,data)
-
-data.qpos[1] = 1.3
+initq = [0., 1.3, 0., 0., 0., 0., 0.]
+data.qpos = initq
 
 #set the controller
-mj.set_mjcb_control(controller)
+kp = 20
+kd = 0.2
+ki = 0.1
+controller = pidController(model, data, kp, kd, ki)
+controller.update(initq)
+mj.set_mjcb_control(controller.controller)
 
 while not glfw.window_should_close(window):
     time_prev = data.time

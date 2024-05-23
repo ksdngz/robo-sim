@@ -4,6 +4,9 @@ Welcome to the robo-sim.
 ### panda-arm task
 * アーム初期姿勢を設定する
 * アームをGUIから任意位置へ変換できるようにする
+* PID制御（ゲイン調整）
+* pidController　I/F設計
+* 時系列データの出力
 * Controller設計
   * PyDrake導入
   * 重力補償器
@@ -24,6 +27,7 @@ Welcome to the robo-sim.
 - [github/mujoco](https://github.com/deepmind/mujoco)
 - [mujoco documentation](https://mujoco.readthedocs.io/en/latest/overview.html)
 - [mujocopy bootcamp](https://pab47.github.io/mujocopy.html)
+- [Mujoco-Tutorial](https://github.com/tayalmanan28/Mujoco-Tutorial)
   - mujoco 2.2.1が必要。手順に沿って、`run_linux`を叩けば良い。（中身はmakeとバイナリ実行）  
 [リンク](https://github.com/deepmind/mujoco/releases/download/2.2.1/mujoco-2.2.1-linux-x86_64.tar.gz)
 から解凍後`~/.mujoco`以下に配置。下記コマンドで解凍する。
