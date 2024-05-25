@@ -5,6 +5,7 @@ Welcome to the robo-sim.
 * アーム初期姿勢を設定する
 * アームをGUIから任意位置へ変換できるようにする
 * pidController　I/F設計
+* rtbWrapperの設計（抽象化）
 * 時系列データの出力
 * Jog機能
 * Controller設計
@@ -17,7 +18,9 @@ Welcome to the robo-sim.
 #### optional
 * 動力学・運動学
 * KinematicTreeの解析
+* [rt_manipulators](https://github.com/rt-net/rt_manipulators_cpp/tree/v1.1.1)の解析
 * MujocoVisualizerの表示拡張
+* urdf共通化(rtb/mujoco)
 
 #### 近くまとめる
 * urdf->mjdfの変換
