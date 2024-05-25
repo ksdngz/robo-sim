@@ -4,10 +4,11 @@ Welcome to the robo-sim.
 ### panda-arm task
 * アーム初期姿勢を設定する
 * アームをGUIから任意位置へ変換できるようにする
-* PID制御（ゲイン調整）
 * pidController　I/F設計
 * 時系列データの出力
+* Jog機能
 * Controller設計
+  * 重力補償PI制御のゲイン調整
   * PyDrake導入
   * 重力補償器
   * 手先インピーダンス

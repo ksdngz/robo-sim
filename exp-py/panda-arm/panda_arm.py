@@ -7,10 +7,10 @@ import control
 import threading
 import tkinter as tk
 import tkinter.ttk as ttk
+import rtbWrapper as rtb
 
 # global settings
 np.set_printoptions(precision=2)
-
 
 class InState:
     def __init__(self, qSize):
@@ -186,6 +186,12 @@ def init_controller(model,data):
 
 class pidController:
     def __init__(self, model, data, kp, kd, ki):
+        # temp
+        #kp = 20
+        #kd = 2
+        #ki = 0.1
+        # temp end
+
         self.model = model
         self.data = data
         self.kp_ = kp
@@ -197,10 +203,11 @@ class pidController:
         self.T = 1
 
     def controller(self, model, data):
+        gc = rtb.calcGravComp(data.qpos)
         e = self.target - data.qpos
         de = (e - self.epre_)/self.T
         self.ie_ = self.ie_ + (e+de)*self.T/2
-        u = self.kp_*e + self.kd_*de + self.ki_*self.ie_
+        u = self.kp_*e + self.kd_*de + self.ki_*self.ie_ + gc
         ## set ctrl in mujoco
         data.ctrl = u
 
@@ -368,7 +375,7 @@ data.qpos = initq
 
 #set the controller
 kp = 20
-kd = 0.2
+kd = 0.5
 ki = 0.1
 controller = pidController(model, data, kp, kd, ki)
 controller.update(initq)
