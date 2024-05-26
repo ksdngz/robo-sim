@@ -34,7 +34,7 @@ class InState:
         self.qtarget_ = [0]*qSize
         self.qsize_ = qSize
 
-    def update(self, data):
+    def updateBySimulation(self, data):
         self.q_ = ["{:.2f}".format(q) for q in np.rad2deg(data.qpos)]
         self.dq_ = ["{:.2f}".format(dq) for dq in np.rad2deg(data.qvel)]
 
@@ -426,7 +426,7 @@ while not glfw.window_should_close(window):
 
     while (data.time - time_prev < 1.0/60.0):
         mj.mj_step(model, data)
-        state.update(data)
+        state.updateBySimulation(data)
         controller.update(state.qtarget_)
 
     if (data.time>=simend):
