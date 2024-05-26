@@ -9,6 +9,21 @@ import tkinter as tk
 import tkinter.ttk as ttk
 import rtbWrapper as rtb
 
+
+
+# commmon method
+# 
+# check if the string s is a number or not.
+# Note that the string including decimals returns true. 
+# 
+def isNum(s): 
+    try:
+        float(s)
+    except ValueError:
+        return False
+    else:
+        return True
+
 # global settings
 np.set_printoptions(precision=2)
 
@@ -16,6 +31,7 @@ class InState:
     def __init__(self, qSize):
         self.q_ = [0]*qSize
         self.dq_ = [0]*qSize
+        self.qtarget_ = [0]*qSize
         self.qsize_ = qSize
 
     def update(self, data):
@@ -36,10 +52,20 @@ class LoggerGUI:
                         '0',
                         values=(qnames[i], self.state_.q_[i], self.state_.dq_[i]))
 
+    def __getEntryValue(self, entry) -> int:
+        s = entry.get()
+        if not isNum(s):
+            return 0. # todo to returns error in case of not number
+
+        return float(s)
+
     def update(self):
         self.tree.delete()
         self.__updateTree()
         self.window.after(1000, self.update)
+
+    def push(self):
+        self.state_.qtarget_[0] = np.deg2rad(self.__getEntryValue(self.j1_entry))
 
     def start(self):
         self.running = True
@@ -48,8 +74,20 @@ class LoggerGUI:
         self.window.geometry('540x240')
 
         # Frame
-        frame = tk.Frame(self.window)
-        frame.pack(fill = tk.BOTH, pady=10)
+        self.jntFrame = tk.Frame(self.window)
+        self.jntFrame.pack(fill = tk.BOTH, pady=10)
+
+        # label
+        self.j1_label = tk.Label(self.jntFrame, text="J1")
+        self.j1_label.grid(column=0, row=0)
+        
+        # Button
+        self.j1_button_en = tk.Button(self.jntFrame, text="ok", command=self.push)
+        self.j1_button_en.grid(column=2, row=0)
+
+        # Entry
+        self.j1_entry = tk.Entry(self.jntFrame)
+        self.j1_entry.grid(column=1, row=0)
 
         # TreeView
         self.tree = ttk.Treeview(self.window,
@@ -63,10 +101,11 @@ class LoggerGUI:
         self.tree.heading(2, text='q[deg]')
         self.tree.heading(3, text='dq[deg/s]')
 
-        x_set = 10 #x方向の座標
-        y_set = 10 #y方向の座標
-        height = 240 #ウィジェットの高さ
-        self.tree.place(x=x_set, y=y_set, height=height) #配置
+        #x_set = 10 #x方向の座標
+        #y_set = 10 #y方向の座標
+        #height = 240 #ウィジェットの高さ
+        #self.tree.place(x=x_set, y=y_set, height=height) #配置
+        self.tree.pack()
 
         self.__updateTree()
 
@@ -372,6 +411,7 @@ cam.lookat =np.array([ 0.0 , 0.0 , 0.0 ])
 #init_controller(model,data)
 initq = [0., 1.3, 0., 0., 0., 0., 0.]
 data.qpos = initq
+state.qtarget_ = initq
 
 #set the controller
 kp = 20
@@ -387,9 +427,10 @@ while not glfw.window_should_close(window):
     while (data.time - time_prev < 1.0/60.0):
         mj.mj_step(model, data)
         state.update(data)
+        controller.update(state.qtarget_)
 
     if (data.time>=simend):
-        break;
+        break
 
     # get framebuffer viewport
     viewport_width, viewport_height = glfw.get_framebuffer_size(
