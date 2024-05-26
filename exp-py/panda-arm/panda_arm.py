@@ -38,34 +38,55 @@ class InState:
         self.q_ = ["{:.2f}".format(q) for q in np.rad2deg(data.qpos)]
         self.dq_ = ["{:.2f}".format(dq) for dq in np.rad2deg(data.qvel)]
 
+class JointView:
+    def __init__(self, frame, name, rowNum, state):    
+        self.label          = tk.Label(frame, text=name)
+        self.entry_q        = tk.Entry(frame, state='readonly')
+        self.entry_cq       = tk.Entry(frame)
+        self.button_en      = tk.Button(frame, text="apply", command=self.__push)
+        self.__state        = state
+        # placement
+        self.label.grid(column=0, row=rowNum)
+        self.entry_q.grid(column=1, row=rowNum)
+        self.entry_cq.grid(column=2, row=rowNum)
+        self.button_en.grid(column=3, row=rowNum)
+
+    def __getEntryValue(self, entry) -> float:
+        s = entry.get()
+        if not isNum(s):
+            return 0. # todo to returns error in case of not number
+        return float(s)
+
+    def __push(self):
+        self.__state.qtarget_[0] = np.deg2rad(self.__getEntryValue(self.entry_cq)) # todo to update index of qtarget_
+    
+    def updateActVal(self, qval):
+        self.entry_q.configure(state='normal')
+        self.entry_q.delete(0, tk.END)
+        self.entry_q.insert(tk.END, str(qval))
+        self.entry_q.configure(state='readonly')
+
 # logging GUI
 class LoggerGUI:
     def __init__(self, state: InState):
         self.state_ = state
-        self.timer_ = 0 
+#        self.timer_ = 0 
 
-    def __updateTree(self):
-        qsize = self.state_.qsize_
-        qnames = ['q'+str(num+1) for num in range(qsize)]
-        for i in reversed(range(0, qsize)):
-            self.tree.insert('',
-                        '0',
-                        values=(qnames[i], self.state_.q_[i], self.state_.dq_[i]))
+#    def __updateTree(self):
+#        qsize = self.state_.qsize_
+#        qnames = ['q'+str(num+1) for num in range(qsize)]
+#        for i in reversed(range(0, qsize)):
+#            self.tree.insert('',
+#                        '0',
+#                        values=(qnames[i], self.state_.q_[i], self.state_.dq_[i]))
 
-    def __getEntryValue(self, entry) -> int:
-        s = entry.get()
-        if not isNum(s):
-            return 0. # todo to returns error in case of not number
-
-        return float(s)
 
     def update(self):
-        self.tree.delete()
-        self.__updateTree()
+#        self.tree.delete()
+#        self.__updateTree()
+        self.j1view.updateActVal(self.state_.q_[0])
         self.window.after(1000, self.update)
 
-    def push(self):
-        self.state_.qtarget_[0] = np.deg2rad(self.__getEntryValue(self.j1_entry_cq))
 
     def start(self):
         self.running = True
@@ -77,47 +98,59 @@ class LoggerGUI:
         self.jntFrame = tk.Frame(self.window)
         self.jntFrame.pack(fill = tk.BOTH, pady=10)
 
-        # label
-        self.j1_label = tk.Label(self.jntFrame, text="J1")
-        self.j1_label.grid(column=0, row=0)
-        
-        # entry_cq
-        self.j1_entry_cq = tk.Entry(self.jntFrame)
-        self.j1_entry_cq.grid(column=2, row=0)
+        # JointView
+        titleRow = 0
+        label_q = tk.Label(self.jntFrame, text='q[deg]')
+        #label_dq = tk.Label(self.jntFrame, text='q[deg/s]')
+        label_cq = tk.Label(self.jntFrame, text='cq[deg]')
+        label_q.grid(column=1, row=titleRow)
+        #label_dq.grid(column=1, row=titleRow)
+        label_cq.grid(column=2, row=titleRow)
 
-        # entry_q
-        self.j1_entry_q = tk.Entry(self.jntFrame, state='readonly')
-        self.j1_entry_q.grid(column=1, row=0)
+        self.j1view = JointView(self.jntFrame, 'J1', 1, state)
+        self.j1view.updateActVal(0)
 
-        # Button
-        self.j1_button_en = tk.Button(self.jntFrame, text="ok", command=self.push)
-        self.j1_button_en.grid(column=3, row=0)
+#        # label
+#        self.j1_label = tk.Label(self.jntFrame, text="J1")
+#        self.j1_label.grid(column=0, row=0)
+#        
+#        # entry_cq
+#        self.j1_entry_cq = tk.Entry(self.jntFrame)
+#        self.j1_entry_cq.grid(column=2, row=0)
+#
+#        # entry_q
+#        self.j1_entry_q = tk.Entry(self.jntFrame, state='readonly')
+#        self.j1_entry_q.grid(column=1, row=0)
+#
+#        # Button
+#        self.j1_button_en = tk.Button(self.jntFrame, text="ok", command=self.push)
+#        self.j1_button_en.grid(column=3, row=0)
 
 
         # configure
-        self.j1_entry_q.configure(state='normal')
-        self.j1_entry_q.insert(tk.END, str(0))
-        self.j1_entry_q.configure(state='readonly')
+#        self.j1_entry_q.configure(state='normal')
+#        self.j1_entry_q.insert(tk.END, str(0))
+#        self.j1_entry_q.configure(state='readonly')
 
         # TreeView
-        self.tree = ttk.Treeview(self.window,
-                    columns=(1,2,3),  #列の作成：3列作成、タプルで識別名を指定
-                    show='headings'   #ヘッダーの設定
-                    )
-        self.tree.column(1, width=100, anchor='center')
-        self.tree.column(2, width=100, anchor='center')
-        self.tree.column(3, width=100, anchor='center')
-        self.tree.heading(1, text='name')
-        self.tree.heading(2, text='q[deg]')
-        self.tree.heading(3, text='dq[deg/s]')
+#        self.tree = ttk.Treeview(self.window,
+#                    columns=(1,2,3),  #列の作成：3列作成、タプルで識別名を指定
+#                    show='headings'   #ヘッダーの設定
+#                    )
+#        self.tree.column(1, width=100, anchor='center')
+#        self.tree.column(2, width=100, anchor='center')
+#        self.tree.column(3, width=100, anchor='center')
+#        self.tree.heading(1, text='name')
+#        self.tree.heading(2, text='q[deg]')
+#        self.tree.heading(3, text='dq[deg/s]')
 
         #x_set = 10 #x方向の座標
         #y_set = 10 #y方向の座標
         #height = 240 #ウィジェットの高さ
         #self.tree.place(x=x_set, y=y_set, height=height) #配置
-        self.tree.pack()
-
-        self.__updateTree()
+#        self.tree.pack()
+#
+#        self.__updateTree()
 
         # Widget
         self.update()
