@@ -65,7 +65,7 @@ class LoggerGUI:
         self.window.after(1000, self.update)
 
     def push(self):
-        self.state_.qtarget_[0] = np.deg2rad(self.__getEntryValue(self.j1_entry))
+        self.state_.qtarget_[0] = np.deg2rad(self.__getEntryValue(self.j1_entry_cq))
 
     def start(self):
         self.running = True
@@ -81,13 +81,23 @@ class LoggerGUI:
         self.j1_label = tk.Label(self.jntFrame, text="J1")
         self.j1_label.grid(column=0, row=0)
         
+        # entry_cq
+        self.j1_entry_cq = tk.Entry(self.jntFrame)
+        self.j1_entry_cq.grid(column=2, row=0)
+
+        # entry_q
+        self.j1_entry_q = tk.Entry(self.jntFrame, state='readonly')
+        self.j1_entry_q.grid(column=1, row=0)
+
         # Button
         self.j1_button_en = tk.Button(self.jntFrame, text="ok", command=self.push)
-        self.j1_button_en.grid(column=2, row=0)
+        self.j1_button_en.grid(column=3, row=0)
 
-        # Entry
-        self.j1_entry = tk.Entry(self.jntFrame)
-        self.j1_entry.grid(column=1, row=0)
+
+        # configure
+        self.j1_entry_q.configure(state='normal')
+        self.j1_entry_q.insert(tk.END, str(0))
+        self.j1_entry_q.configure(state='readonly')
 
         # TreeView
         self.tree = ttk.Treeview(self.window,
