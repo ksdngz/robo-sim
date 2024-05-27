@@ -45,14 +45,14 @@ class JointView:
         self.entry_q        = tk.Entry(frame, state='readonly', width=ENTRY_WIDTH)
         self.entry_dq       = tk.Entry(frame, state='readonly', width=ENTRY_WIDTH)
         self.entry_cq       = tk.Entry(frame, width=ENTRY_WIDTH)
-        self.button_en      = tk.Button(frame, text="apply", command=self.__push)
+        self.btn_apply      = tk.Button(frame, text="apply", command=self.__onbtn_apply)
         self.__state        = state
         # placement
         self.label.grid(column= 0, row=rowNum)
         self.entry_q.grid(column=1, row=rowNum)
         self.entry_dq.grid(column=2, row=rowNum)
         self.entry_cq.grid(column=3, row=rowNum)
-        self.button_en.grid(column=4, row=rowNum)
+        self.btn_apply.grid(column=4, row=rowNum)
 
     def __getEntryValue(self, entry) -> float:
         s = entry.get()
@@ -60,7 +60,7 @@ class JointView:
             return 0. # todo to returns error in case of not number
         return float(s)
 
-    def __push(self):
+    def __onbtn_apply(self):
         self.__state.qtarget_[0] = np.deg2rad(self.__getEntryValue(self.entry_cq)) # todo to update index of qtarget_
     
     def updateActValues(self, q, dq):
@@ -74,37 +74,20 @@ class JointView:
         self.entry_dq.insert(tk.END, str(dq))
         self.entry_dq.configure(state='readonly')
 
-# logging GUI
-class LoggerGUI:
+class Debugger:
     def __init__(self, state: InState):
         self.state_ = state
-#        self.timer_ = 0 
-
-#    def __updateTree(self):
-#        qsize = self.state_.qsize_
-#        qnames = ['q'+str(num+1) for num in range(qsize)]
-#        for i in reversed(range(0, qsize)):
-#            self.tree.insert('',
-#                        '0',
-#                        values=(qnames[i], self.state_.q_[i], self.state_.dq_[i]))
-
 
     def update(self):
-#        self.tree.delete()
-#        self.__updateTree()
-        #self.j1view.updateActVal(self.state_.q_[0])
-        
         for i, jntView in enumerate(self.jntViews):
             jntView.updateActValues(self.state_.q_[i], self.state_.dq_[i])
-            
-        
-        self.window.after(1000, self.update)
 
+        self.window.after(1000, self.update)
 
     def start(self):
         self.running = True
         self.window = tk.Tk()
-        self.window.title("Logger")
+        self.window.title("Debugger")
         self.window.geometry('540x240')
 
         # Frame
@@ -120,59 +103,10 @@ class LoggerGUI:
         label_dq.grid(column=2, row=titleRow)
         label_cq.grid(column=3, row=titleRow)
 
-        
-        
         self.jntViews = [JointView(self.jntFrame, 'J'+str(i), i, state) for i in range(1, state.qsize_+1)]
         for jntView in self.jntViews:
             jntView.updateActValues(0, 0)
-        
-#        self.j1view = JointView(self.jntFrame, 'J1', 1, state)
-#        self.j1view.updateActVal(0)
-
-        
-        
-#        # label
-#        self.j1_label = tk.Label(self.jntFrame, text="J1")
-#        self.j1_label.grid(column=0, row=0)
-#        
-#        # entry_cq
-#        self.j1_entry_cq = tk.Entry(self.jntFrame)
-#        self.j1_entry_cq.grid(column=2, row=0)
-#
-#        # entry_q
-#        self.j1_entry_q = tk.Entry(self.jntFrame, state='readonly')
-#        self.j1_entry_q.grid(column=1, row=0)
-#
-#        # Button
-#        self.j1_button_en = tk.Button(self.jntFrame, text="ok", command=self.push)
-#        self.j1_button_en.grid(column=3, row=0)
-
-
-        # configure
-#        self.j1_entry_q.configure(state='normal')
-#        self.j1_entry_q.insert(tk.END, str(0))
-#        self.j1_entry_q.configure(state='readonly')
-
-        # TreeView
-#        self.tree = ttk.Treeview(self.window,
-#                    columns=(1,2,3),  #列の作成：3列作成、タプルで識別名を指定
-#                    show='headings'   #ヘッダーの設定
-#                    )
-#        self.tree.column(1, width=100, anchor='center')
-#        self.tree.column(2, width=100, anchor='center')
-#        self.tree.column(3, width=100, anchor='center')
-#        self.tree.heading(1, text='name')
-#        self.tree.heading(2, text='q[deg]')
-#        self.tree.heading(3, text='dq[deg/s]')
-
-        #x_set = 10 #x方向の座標
-        #y_set = 10 #y方向の座標
-        #height = 240 #ウィジェットの高さ
-        #self.tree.place(x=x_set, y=y_set, height=height) #配置
-#        self.tree.pack()
-#
-#        self.__updateTree()
-
+                
         # Widget
         self.update()
         self.window.mainloop()
@@ -436,10 +370,10 @@ opt = mj.MjvOption()                        # visualization options
 # Init Internal State
 state = InState(model.nu)
 
-# Init LoggerGUI
-logger = LoggerGUI(state)
-loggerThread = threading.Thread(target=logger.start)
-loggerThread.start()
+# Init Debugger
+debugger = Debugger(state)
+debuggerThread = threading.Thread(target=debugger.start)
+debuggerThread.start()
 
 # Init GLFW, create window, make OpenGL context current, request v-sync
 glfw.init()
