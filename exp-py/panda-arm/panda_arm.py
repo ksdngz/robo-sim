@@ -27,19 +27,27 @@ def isNum(s):
 # global settings
 np.set_printoptions(precision=2)
 
+class JointState:
+    def __init__(self):
+        self.q_ = 0
+        self.dq_ = 0
+        self.qtarget_ = 0
+
+    def updateBySimulation(self, q, dq):
+        self.q_ = "{:.2f}".format(np.rad2deg(q))
+        self.dq_ = "{:.2f}".format(np.rad2deg(dq))
+            
 class InState:
     def __init__(self, qSize):
-        self.q_ = [0]*qSize
-        self.dq_ = [0]*qSize
-        self.qtarget_ = [0]*qSize
+        self.joints_ = [JointState() for i in range(qSize)]
         self.qsize_ = qSize
 
     def updateBySimulation(self, data):
-        self.q_ = ["{:.2f}".format(q) for q in np.rad2deg(data.qpos)]
-        self.dq_ = ["{:.2f}".format(dq) for dq in np.rad2deg(data.qvel)]
+        for i, jnt in enumerate(self.joints_):
+            jnt.updateBySimulation(data.qpos[i], data.qvel[i])
 
 class JointView:
-    def __init__(self, frame, name, rowNum, state):
+    def __init__(self, frame, name, rowNum, state, index):
         ENTRY_WIDTH = 7
         self.label          = tk.Label(frame, text=name)
         self.entry_q        = tk.Entry(frame, state='readonly', width=ENTRY_WIDTH)
@@ -47,6 +55,7 @@ class JointView:
         self.entry_cq       = tk.Entry(frame, width=ENTRY_WIDTH)
         self.btn_apply      = tk.Button(frame, text="apply", command=self.__onbtn_apply)
         self.__state        = state
+        self.__index        = index
         # placement
         self.label.grid(column= 0, row=rowNum)
         self.entry_q.grid(column=1, row=rowNum)
@@ -61,7 +70,7 @@ class JointView:
         return float(s)
 
     def __onbtn_apply(self):
-        self.__state.qtarget_[0] = np.deg2rad(self.__getEntryValue(self.entry_cq)) # todo to update index of qtarget_
+        self.__state.joints_[self.__index].qtarget_ = np.deg2rad(self.__getEntryValue(self.entry_cq)) # todo to update index of qtarget_
     
     def updateActValues(self, q, dq):
         self.entry_q.configure(state='normal')
@@ -80,7 +89,7 @@ class Debugger:
 
     def update(self):
         for i, jntView in enumerate(self.jntViews):
-            jntView.updateActValues(self.state_.q_[i], self.state_.dq_[i])
+            jntView.updateActValues(self.state_.joints_[i].q_, self.state_.joints_[i].dq_)
 
         self.window.after(1000, self.update)
 
@@ -103,7 +112,7 @@ class Debugger:
         label_dq.grid(column=2, row=titleRow)
         label_cq.grid(column=3, row=titleRow)
 
-        self.jntViews = [JointView(self.jntFrame, 'J'+str(i), i, state) for i in range(1, state.qsize_+1)]
+        self.jntViews = [JointView(self.jntFrame, 'J'+str(i+1), i+1, state, i) for i in range(state.qsize_)]
         for jntView in self.jntViews:
             jntView.updateActValues(0, 0)
                 
@@ -409,7 +418,11 @@ cam.lookat =np.array([ 0.0 , 0.0 , 0.0 ])
 #init_controller(model,data)
 initq = [0., 1.3, 0., 0., 0., 0., 0.]
 data.qpos = initq
-state.qtarget_ = initq
+# state.qtarget_ = initq
+
+for i, jnt in enumerate(state.joints_):
+    jnt.qtarget_ = initq[i]
+
 
 #set the controller
 kp = 20
@@ -425,7 +438,8 @@ while not glfw.window_should_close(window):
     while (data.time - time_prev < 1.0/60.0):
         mj.mj_step(model, data)
         state.updateBySimulation(data)
-        controller.update(state.qtarget_)
+        qtargets = [state.joints_[i].qtarget_ for i in range(model.nu)]
+        controller.update(qtargets)
 
     if (data.time>=simend):
         break
