@@ -39,17 +39,20 @@ class InState:
         self.dq_ = ["{:.2f}".format(dq) for dq in np.rad2deg(data.qvel)]
 
 class JointView:
-    def __init__(self, frame, name, rowNum, state):    
+    def __init__(self, frame, name, rowNum, state):
+        ENTRY_WIDTH = 7
         self.label          = tk.Label(frame, text=name)
-        self.entry_q        = tk.Entry(frame, state='readonly')
-        self.entry_cq       = tk.Entry(frame)
+        self.entry_q        = tk.Entry(frame, state='readonly', width=ENTRY_WIDTH)
+        self.entry_dq       = tk.Entry(frame, state='readonly', width=ENTRY_WIDTH)
+        self.entry_cq       = tk.Entry(frame, width=ENTRY_WIDTH)
         self.button_en      = tk.Button(frame, text="apply", command=self.__push)
         self.__state        = state
         # placement
-        self.label.grid(column=0, row=rowNum)
+        self.label.grid(column= 0, row=rowNum)
         self.entry_q.grid(column=1, row=rowNum)
-        self.entry_cq.grid(column=2, row=rowNum)
-        self.button_en.grid(column=3, row=rowNum)
+        self.entry_dq.grid(column=2, row=rowNum)
+        self.entry_cq.grid(column=3, row=rowNum)
+        self.button_en.grid(column=4, row=rowNum)
 
     def __getEntryValue(self, entry) -> float:
         s = entry.get()
@@ -60,11 +63,16 @@ class JointView:
     def __push(self):
         self.__state.qtarget_[0] = np.deg2rad(self.__getEntryValue(self.entry_cq)) # todo to update index of qtarget_
     
-    def updateActVal(self, qval):
+    def updateActValues(self, q, dq):
         self.entry_q.configure(state='normal')
         self.entry_q.delete(0, tk.END)
-        self.entry_q.insert(tk.END, str(qval))
+        self.entry_q.insert(tk.END, str(q))
         self.entry_q.configure(state='readonly')
+
+        self.entry_dq.configure(state='normal')
+        self.entry_dq.delete(0, tk.END)
+        self.entry_dq.insert(tk.END, str(dq))
+        self.entry_dq.configure(state='readonly')
 
 # logging GUI
 class LoggerGUI:
@@ -84,7 +92,12 @@ class LoggerGUI:
     def update(self):
 #        self.tree.delete()
 #        self.__updateTree()
-        self.j1view.updateActVal(self.state_.q_[0])
+        #self.j1view.updateActVal(self.state_.q_[0])
+        
+        for i, jntView in enumerate(self.jntViews):
+            jntView.updateActValues(self.state_.q_[i], self.state_.dq_[i])
+            
+        
         self.window.after(1000, self.update)
 
 
@@ -101,15 +114,23 @@ class LoggerGUI:
         # JointView
         titleRow = 0
         label_q = tk.Label(self.jntFrame, text='q[deg]')
-        #label_dq = tk.Label(self.jntFrame, text='q[deg/s]')
+        label_dq = tk.Label(self.jntFrame, text='dq[deg/s]')
         label_cq = tk.Label(self.jntFrame, text='cq[deg]')
         label_q.grid(column=1, row=titleRow)
-        #label_dq.grid(column=1, row=titleRow)
-        label_cq.grid(column=2, row=titleRow)
+        label_dq.grid(column=2, row=titleRow)
+        label_cq.grid(column=3, row=titleRow)
 
-        self.j1view = JointView(self.jntFrame, 'J1', 1, state)
-        self.j1view.updateActVal(0)
+        
+        
+        self.jntViews = [JointView(self.jntFrame, 'J'+str(i), i, state) for i in range(1, state.qsize_+1)]
+        for jntView in self.jntViews:
+            jntView.updateActValues(0, 0)
+        
+#        self.j1view = JointView(self.jntFrame, 'J1', 1, state)
+#        self.j1view.updateActVal(0)
 
+        
+        
 #        # label
 #        self.j1_label = tk.Label(self.jntFrame, text="J1")
 #        self.j1_label.grid(column=0, row=0)

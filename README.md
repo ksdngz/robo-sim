@@ -4,13 +4,16 @@ Welcome to the robo-sim.
 ### panda-arm task
 * アーム初期姿勢を設定する
 * アームをGUIから任意位置へ変換できるようにする
+* メッシュがみれるようにする
 * pidController　I/F設計
+* 各軸PD制御
+  * 速度指令を入れる制御則
+* 速度分解制御
 * rtbWrapperの設計（抽象化）
 * 時系列データの出力
 * Jog機能
 * Controller設計
   * 重力補償PI制御のゲイン調整
-  * PyDrake導入
   * 重力補償器
   * 手先インピーダンス
   * 経路・軌道計画
@@ -21,6 +24,7 @@ Welcome to the robo-sim.
 * [rt_manipulators](https://github.com/rt-net/rt_manipulators_cpp/tree/v1.1.1)の解析
 * MujocoVisualizerの表示拡張
 * urdf共通化(rtb/mujoco)
+* PyDrake導入
 
 #### 近くまとめる
 * urdf->mjdfの変換
