@@ -42,9 +42,81 @@ class InState:
         self.joints_ = [JointState() for i in range(qSize)]
         self.qsize_ = qSize
 
+    def qs(self):
+        return [self.joints_[i].q_ for i in range(self.qsize_)]
+
+    def qdots(self):
+        return [self.joints_[i].dq_ for i in range(self.qsize_)]
+
     def updateBySimulation(self, data):
         for i, jnt in enumerate(self.joints_):
             jnt.updateBySimulation(data.qpos[i], data.qvel[i])
+
+class RingBuffer:
+    def __init__(self, size):
+        self.buffer = [None for i in range(0, size)]
+        self.top = 0
+        self.bottom = 0
+        self.size = size
+
+    def __len__(self):
+        return self.bottom - self.top
+
+    def add(self, value):
+        self.buffer[self.bottom] = value
+        self.bottom = (self.bottom + 1) % len(self.buffer)
+
+    def getVal(self, index=None):
+        if index is not None:
+            return self.buffer[index]
+
+        value = self.buffer[self.top]
+        self.top =(self.top + 1) % len(self.buffer)
+        return value
+    
+    def getList(self):
+        return self.buffer # to be implemented
+
+# rBuf = RingBuffer(10)
+# rBuf.add(1)
+# rBuf.add(2)
+# rBuf.add(3)
+# rBuf.add(4)
+# rBuf.add(5)
+# print(rBuf.getList())
+
+## DataLogger
+class DataLogger:
+    def __init__(self, state : InState):
+        MAX_LOGGING_SIZE = 100000
+        self.__state = state
+        self.__qBuf = RingBuffer(MAX_LOGGING_SIZE)
+        self.__qdotBuf = RingBuffer(MAX_LOGGING_SIZE)
+        self.__enabled = False
+        self.__size = 0
+
+    def startLog(self, size):
+        if self.__enabled:
+            print('startLog Error: logging is already enabled.')
+            return
+        self.__qBuf = RingBuffer(size)
+        self.__qdotBuf = RingBuffer(size)
+        self.__size = size
+        self.__enabled = True
+
+    def log(self):
+        if self.__enabled:
+            self.__qBuf.add(state.qs())    
+            self.__qdotBuf.add(state.qdots())    
+
+    def endLog(self):
+        self.__enabled = False
+
+    def getLog_q(self):
+        return self.__qBuf.getList()
+
+    def getLog_qdot(self):
+        return self.__qdotBufBuf.getList()
 
 class JointView:
     def __init__(self, frame, name, rowNum, state, index):
@@ -384,6 +456,10 @@ debugger = Debugger(state)
 debuggerThread = threading.Thread(target=debugger.start)
 debuggerThread.start()
 
+# Init DataLogger
+dataLogger = DataLogger(state)
+dataLogger.startLog(100)
+
 # Init GLFW, create window, make OpenGL context current, request v-sync
 glfw.init()
 window = glfw.create_window(1200, 900, "Visualizer", None, None)
@@ -440,6 +516,7 @@ while not glfw.window_should_close(window):
         state.updateBySimulation(data)
         qtargets = [state.joints_[i].qtarget_ for i in range(model.nu)]
         controller.update(qtargets)
+        dataLogger.log()
 
     if (data.time>=simend):
         break
