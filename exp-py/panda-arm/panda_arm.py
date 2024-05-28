@@ -60,6 +60,9 @@ class InState:
 
     def endDataLog(self):
         self.dataLogger.endLog()
+        
+    def showDataLog(self):
+        self.dataLogger.showLog()
 
 class RingBuffer:
     def __init__(self, size):
@@ -94,6 +97,38 @@ class RingBuffer:
 # rBuf.add(5)
 # print(rBuf.getList())
 
+class Graph:
+    def __init__(self):
+        return
+    
+    def show(self):
+        x = np.linspace(0, 10, 1000)
+        y1 = np.sin(x)
+        y2 = np.cos(x) 
+        c1, c2 = 'blue', 'green'
+        l1, l2 = 'sin', 'cos'
+        xl1, xl2 = 'x', 'x'
+        yl1, yl2 = 'sin', 'cos'
+        #グラフを表示する領域を，figオブジェクトとして作成。
+        fig = plt.figure(figsize = (10,6), facecolor='lightblue')
+        #グラフを描画するsubplot領域を作成。
+        ax1 = fig.add_subplot(2, 1, 1)
+        ax2 = fig.add_subplot(2, 1, 2)
+        #各subplot領域にデータを渡す
+        ax1.plot(x, y1, color=c1, label=l1)
+        ax2.plot(x, y2, color=c2, label=l2)
+        #各subplotにxラベルを追加
+        ax1.set_xlabel(xl1)
+        ax2.set_xlabel(xl2)
+        #各subplotにyラベルを追加
+        ax1.set_ylabel(yl1)
+        ax2.set_ylabel(yl2)
+        # 凡例表示
+        ax1.legend(loc = 'upper right') 
+        ax2.legend(loc = 'upper right') 
+        plt.show()
+    
+
 ## DataLogger
 class DataLogger:
     def __init__(self, state : InState):
@@ -126,6 +161,10 @@ class DataLogger:
 
     def getLog_qdot(self):
         return self.__qdotBufBuf.getList()
+
+    def showLog(self):
+        g = Graph()
+        g.show()
 
 class JointView:
     def __init__(self, frame, name, rowNum, state, index):
@@ -179,6 +218,9 @@ class Debugger:
         
     def __onbtn_endDataLog(self):
         state.endDataLog()        
+
+    def __onbtn_showDataLog(self):
+        state.showDataLog()        
     
     def start(self):
         self.running = True
@@ -186,10 +228,14 @@ class Debugger:
         self.window.title("Debugger")
         self.window.geometry('540x240')
 
-        # joint frame
+        # frame
         self.jntFrame = tk.Frame(self.window)
-        self.jntFrame.pack(fill = tk.BOTH, pady=10)
-        # JointView
+        self.datalogFrame = tk.Frame(self.window)
+        # frame layout
+        self.jntFrame.grid(column=1, row=0)
+        self.datalogFrame.grid(column=2, row=0)
+
+        # Joint Widgets
         titleRow = 0
         label_q = tk.Label(self.jntFrame, text='q[deg]')
         label_dq = tk.Label(self.jntFrame, text='dq[deg/s]')
@@ -198,15 +244,15 @@ class Debugger:
         label_dq.grid(column=2, row=titleRow)
         label_cq.grid(column=3, row=titleRow)
 
-        self.datalogFrame = tk.Frame(self.window)
-        self.datalogFrame.pack(fill = tk.BOTH, pady=10)
+        # Datalog Widgets
         self.btn_startDataLog = tk.Button(self.datalogFrame, text="start", command=self.__onbtn_startDataLog)
         self.btn_endDataLog = tk.Button(self.datalogFrame, text="end", command=self.__onbtn_endDataLog)
+        self.btn_showDataLog = tk.Button(self.datalogFrame, text="show", command=self.__onbtn_showDataLog)
         rowNum = 0
         #self.label.grid(column= 0, row=rowNum)
         self.btn_startDataLog.grid(column=1, row=rowNum)
         self.btn_endDataLog.grid(column=2, row=rowNum)
-
+        self.btn_showDataLog.grid(column=3, row=rowNum)
 
         self.jntViews = [JointView(self.jntFrame, 'J'+str(i+1), i+1, state, i) for i in range(state.qsize_)]
         for jntView in self.jntViews:
