@@ -41,7 +41,7 @@ class InState:
     def __init__(self, qSize):
         self.joints_ = [JointState() for i in range(qSize)]
         self.qsize_ = qSize
-
+        self.dataLogger = DataLogger(self)
     def qs(self):
         return [self.joints_[i].q_ for i in range(self.qsize_)]
 
@@ -51,6 +51,15 @@ class InState:
     def updateBySimulation(self, data):
         for i, jnt in enumerate(self.joints_):
             jnt.updateBySimulation(data.qpos[i], data.qvel[i])
+        
+        self.dataLogger.log()
+
+    def startDataLog(self):
+        DEFAULT_SIZE = 100
+        self.dataLogger.startLog(DEFAULT_SIZE)
+
+    def endDataLog(self):
+        self.dataLogger.endLog()
 
 class RingBuffer:
     def __init__(self, size):
@@ -165,16 +174,21 @@ class Debugger:
 
         self.window.after(1000, self.update)
 
+    def __onbtn_startDataLog(self):
+        state.startDataLog()
+        
+    def __onbtn_endDataLog(self):
+        state.endDataLog()        
+    
     def start(self):
         self.running = True
         self.window = tk.Tk()
         self.window.title("Debugger")
         self.window.geometry('540x240')
 
-        # Frame
+        # joint frame
         self.jntFrame = tk.Frame(self.window)
         self.jntFrame.pack(fill = tk.BOTH, pady=10)
-
         # JointView
         titleRow = 0
         label_q = tk.Label(self.jntFrame, text='q[deg]')
@@ -183,6 +197,16 @@ class Debugger:
         label_q.grid(column=1, row=titleRow)
         label_dq.grid(column=2, row=titleRow)
         label_cq.grid(column=3, row=titleRow)
+
+        self.datalogFrame = tk.Frame(self.window)
+        self.datalogFrame.pack(fill = tk.BOTH, pady=10)
+        self.btn_startDataLog = tk.Button(self.datalogFrame, text="start", command=self.__onbtn_startDataLog)
+        self.btn_endDataLog = tk.Button(self.datalogFrame, text="end", command=self.__onbtn_endDataLog)
+        rowNum = 0
+        #self.label.grid(column= 0, row=rowNum)
+        self.btn_startDataLog.grid(column=1, row=rowNum)
+        self.btn_endDataLog.grid(column=2, row=rowNum)
+
 
         self.jntViews = [JointView(self.jntFrame, 'J'+str(i+1), i+1, state, i) for i in range(state.qsize_)]
         for jntView in self.jntViews:
@@ -456,10 +480,6 @@ debugger = Debugger(state)
 debuggerThread = threading.Thread(target=debugger.start)
 debuggerThread.start()
 
-# Init DataLogger
-dataLogger = DataLogger(state)
-dataLogger.startLog(100)
-
 # Init GLFW, create window, make OpenGL context current, request v-sync
 glfw.init()
 window = glfw.create_window(1200, 900, "Visualizer", None, None)
@@ -516,7 +536,6 @@ while not glfw.window_should_close(window):
         state.updateBySimulation(data)
         qtargets = [state.joints_[i].qtarget_ for i in range(model.nu)]
         controller.update(qtargets)
-        dataLogger.log()
 
     if (data.time>=simend):
         break
