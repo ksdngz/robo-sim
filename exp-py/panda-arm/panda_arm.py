@@ -24,24 +24,35 @@ def isNum(s):
     else:
         return True
 
+def transpose(list_org): # doubly list e.g. [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+    list_transposed = [list(x) for x in zip(*list_org)]
+    return list_transposed
+
 # global settings
 np.set_printoptions(precision=2)
 
 class JointState:
     def __init__(self):
-        self.q_ = 0
-        self.dq_ = 0
-        self.qtarget_ = 0
+        self.q_ = 0 # [deg]
+        self.dq_ = 0 # [deg/s]
+        self.qtarget_ = 0 # [deg]
 
     def updateBySimulation(self, q, dq):
-        self.q_ = "{:.2f}".format(np.rad2deg(q))
-        self.dq_ = "{:.2f}".format(np.rad2deg(dq))
+        self.q_ = np.rad2deg(q)
+        self.dq_ = np.rad2deg(dq)
+#        self.q_ = "{:.2f}".format(np.rad2deg(q))
+#        self.dq_ = "{:.2f}".format(np.rad2deg(dq))
             
 class InState:
     def __init__(self, qSize):
         self.joints_ = [JointState() for i in range(qSize)]
         self.qsize_ = qSize
+        self.__time = 0
         self.dataLogger = DataLogger(self)
+
+    def time(self):
+        return self.__time
+        
     def qs(self):
         return [self.joints_[i].q_ for i in range(self.qsize_)]
 
@@ -49,6 +60,7 @@ class InState:
         return [self.joints_[i].dq_ for i in range(self.qsize_)]
 
     def updateBySimulation(self, data):
+        self.__time = self.__time+1
         for i, jnt in enumerate(self.joints_):
             jnt.updateBySimulation(data.qpos[i], data.qvel[i])
         
@@ -70,6 +82,7 @@ class RingBuffer:
         self.top = 0
         self.bottom = 0
         self.size = size
+        self.isFull = False
 
     def __len__(self):
         return self.bottom - self.top
@@ -77,6 +90,10 @@ class RingBuffer:
     def add(self, value):
         self.buffer[self.bottom] = value
         self.bottom = (self.bottom + 1) % len(self.buffer)
+        if(self.top == self.bottom):
+            self.isFull = True
+            
+
 
     def getVal(self, index=None):
         if index is not None:
@@ -87,7 +104,13 @@ class RingBuffer:
         return value
     
     def getList(self):
-        return self.buffer # to be implemented
+        l = []
+        if(self.isFull): # todo test
+            l = self.buffer[self.bottom:]
+            l.extend(self.buffer[:self.bottom])
+        else:
+            l = self.buffer[:self.bottom]
+        return l
 
 # rBuf = RingBuffer(10)
 # rBuf.add(1)
@@ -97,45 +120,77 @@ class RingBuffer:
 # rBuf.add(5)
 # print(rBuf.getList())
 
+class LogData:
+    def __init__(self):
+        MAX_LOGGING_SIZE = 100000
+        self.timeBuf = RingBuffer(MAX_LOGGING_SIZE)
+        self.qBuf = RingBuffer(MAX_LOGGING_SIZE)
+        self.qdotBuf = RingBuffer(MAX_LOGGING_SIZE)
+
 class Graph:
     def __init__(self):
         return
     
-    def show(self):
-        x = np.linspace(0, 10, 1000)
-        y1 = np.sin(x)
-        y2 = np.cos(x) 
-        c1, c2 = 'blue', 'green'
-        l1, l2 = 'sin', 'cos'
-        xl1, xl2 = 'x', 'x'
-        yl1, yl2 = 'sin', 'cos'
+    def __addPlot(self, fig, pos, xs, ys, sName, 
+                  sColor='blue', xLbl ='x', yLbl='y'):
+        ax = fig.add_subplot(pos[0], pos[1], pos[2])
+        ax.plot(xs, ys, color=sColor, label=sName)
+        ax.set_xlabel(xLbl)
+        ax.set_ylabel(yLbl)
+        ax.legend(loc = 'upper right') 
+        return ax
+    
+    def show(self, data : LogData):
+        t = data.timeBuf.getList()
+        qs = transpose(data.qBuf.getList())
+        qdots = transpose(data.qdotBuf.getList())
+        
+#        x = np.linspace(0, 10, 1000)
+#        y = np.sin(x)
+#        c1, c2 = 'blue', 'green'
+#        l1, l2 = 'sin', 'cos'
+#        xl1, xl2 = 'x', 'x'
+#        yl1, yl2 = 'sin', 'cos'
         #グラフを表示する領域を，figオブジェクトとして作成。
-        fig = plt.figure(figsize = (10,6), facecolor='lightblue')
+        fig = plt.figure(figsize = (15,6), facecolor='lightblue')
         #グラフを描画するsubplot領域を作成。
-        ax1 = fig.add_subplot(2, 1, 1)
-        ax2 = fig.add_subplot(2, 1, 2)
+        row = 2; col = 4
+        # q
+        axs = [self.__addPlot(fig, [row,col, i+1], t, qs[i], 'J'+str(i+1)) for i in range(row*col)]
+
+#        ax1 = fig.add_subplot(2, 4, 1)
+#        ax2 = fig.add_subplot(2, 4, 2)
+#        ax3 = fig.add_subplot(2, 4, 3)
+#        ax4 = fig.add_subplot(2, 4, 4)
+#        ax5 = fig.add_subplot(2, 4, 5)
+#        ax6 = fig.add_subplot(2, 4, 6)
+#        ax7 = fig.add_subplot(2, 4, 7)
+#        ax8 = fig.add_subplot(2, 4, 8)
         #各subplot領域にデータを渡す
-        ax1.plot(x, y1, color=c1, label=l1)
-        ax2.plot(x, y2, color=c2, label=l2)
-        #各subplotにxラベルを追加
-        ax1.set_xlabel(xl1)
-        ax2.set_xlabel(xl2)
-        #各subplotにyラベルを追加
-        ax1.set_ylabel(yl1)
-        ax2.set_ylabel(yl2)
-        # 凡例表示
-        ax1.legend(loc = 'upper right') 
-        ax2.legend(loc = 'upper right') 
+#        ax1.plot(x, y1, color=c1, label=l1)
+#        ax2.plot(x, y2, color=c2, label=l2)
+#        #各subplotにxラベルを追加
+#        ax1.set_xlabel(xl1)
+#        ax2.set_xlabel(xl2)
+#        #各subplotにyラベルを追加
+#        ax1.set_ylabel(yl1)
+#        ax2.set_ylabel(yl2)
+#        # 凡例表示
+#        ax1.legend(loc = 'upper right') 
+#        ax2.legend(loc = 'upper right') 
         plt.show()
     
 
+
+    
 ## DataLogger
 class DataLogger:
     def __init__(self, state : InState):
-        MAX_LOGGING_SIZE = 100000
         self.__state = state
-        self.__qBuf = RingBuffer(MAX_LOGGING_SIZE)
-        self.__qdotBuf = RingBuffer(MAX_LOGGING_SIZE)
+        self.__data = LogData()
+#        self.__timeBuf = RingBuffer(MAX_LOGGING_SIZE)
+#        self.__qBuf = RingBuffer(MAX_LOGGING_SIZE)
+#        self.__qdotBuf = RingBuffer(MAX_LOGGING_SIZE)
         self.__enabled = False
         self.__size = 0
 
@@ -143,28 +198,32 @@ class DataLogger:
         if self.__enabled:
             print('startLog Error: logging is already enabled.')
             return
-        self.__qBuf = RingBuffer(size)
-        self.__qdotBuf = RingBuffer(size)
+        # temp
+        size = 100000
+        self.__data.timeBuf = RingBuffer(size)
+        self.__data.qBuf = RingBuffer(size)
+        self.__data.qdotBuf = RingBuffer(size)
         self.__size = size
         self.__enabled = True
 
     def log(self):
         if self.__enabled:
-            self.__qBuf.add(state.qs())    
-            self.__qdotBuf.add(state.qdots())    
+            self.__data.timeBuf.add(state.time())    
+            self.__data.qBuf.add(state.qs())    
+            self.__data.qdotBuf.add(state.qdots())    
 
     def endLog(self):
         self.__enabled = False
 
     def getLog_q(self):
-        return self.__qBuf.getList()
+        return self.__data.qBuf.getList()
 
     def getLog_qdot(self):
-        return self.__qdotBufBuf.getList()
+        return self.__data.qdotBuf.getList()
 
     def showLog(self):
         g = Graph()
-        g.show()
+        g.show(self.__data)
 
 class JointView:
     def __init__(self, frame, name, rowNum, state, index):
@@ -195,12 +254,17 @@ class JointView:
     def updateActValues(self, q, dq):
         self.entry_q.configure(state='normal')
         self.entry_q.delete(0, tk.END)
-        self.entry_q.insert(tk.END, str(q))
+        
+        #        self.q_ = "{:.2f}".format(np.rad2deg(q))
+#        self.dq_ = "{:.2f}".format(np.rad2deg(dq))
+
+        
+        self.entry_q.insert(tk.END, "{:.2f}".format(q))
         self.entry_q.configure(state='readonly')
 
         self.entry_dq.configure(state='normal')
         self.entry_dq.delete(0, tk.END)
-        self.entry_dq.insert(tk.END, str(dq))
+        self.entry_dq.insert(tk.END, "{:.2f}".format(dq))
         self.entry_dq.configure(state='readonly')
 
 class Debugger:
