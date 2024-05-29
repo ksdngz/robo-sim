@@ -156,7 +156,7 @@ class Graph:
         #グラフを描画するsubplot領域を作成。
         row = 2; col = 4
         # q
-        axs = [self.__addPlot(fig, [row,col, i+1], t, qs[i], 'J'+str(i+1)) for i in range(row*col)]
+        axs = [self.__addPlot(fig, [row,col, i+1], t, qs[i], 'J'+str(i+1)) for i in range(len(qs))]
 
 #        ax1 = fig.add_subplot(2, 4, 1)
 #        ax2 = fig.add_subplot(2, 4, 2)
