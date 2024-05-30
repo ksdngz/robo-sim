@@ -9,8 +9,6 @@ import tkinter as tk
 import tkinter.ttk as ttk
 import rtbWrapper as rtb
 
-
-
 # commmon method
 # 
 # check if the string s is a number or not.
@@ -40,10 +38,8 @@ class JointState:
     def updateBySimulation(self, q, dq):
         self.q_ = np.rad2deg(q)
         self.dq_ = np.rad2deg(dq)
-#        self.q_ = "{:.2f}".format(np.rad2deg(q))
-#        self.dq_ = "{:.2f}".format(np.rad2deg(dq))
             
-class InState:
+class SimState:
     def __init__(self, qSize):
         self.joints_ = [JointState() for i in range(qSize)]
         self.qsize_ = qSize
@@ -92,8 +88,6 @@ class RingBuffer:
         self.bottom = (self.bottom + 1) % len(self.buffer)
         if(self.top == self.bottom):
             self.isFull = True
-            
-
 
     def getVal(self, index=None):
         if index is not None:
@@ -111,14 +105,6 @@ class RingBuffer:
         else:
             l = self.buffer[:self.bottom]
         return l
-
-# rBuf = RingBuffer(10)
-# rBuf.add(1)
-# rBuf.add(2)
-# rBuf.add(3)
-# rBuf.add(4)
-# rBuf.add(5)
-# print(rBuf.getList())
 
 class LogData:
     def __init__(self):
@@ -145,60 +131,28 @@ class Graph:
         qs = transpose(data.qBuf.getList())
         qdots = transpose(data.qdotBuf.getList())
         
-#        x = np.linspace(0, 10, 1000)
-#        y = np.sin(x)
-#        c1, c2 = 'blue', 'green'
-#        l1, l2 = 'sin', 'cos'
-#        xl1, xl2 = 'x', 'x'
-#        yl1, yl2 = 'sin', 'cos'
-        #グラフを表示する領域を，figオブジェクトとして作成。
+        # Figure construction        
         fig = plt.figure(figsize = (22,5), facecolor='lightblue')
         row = 2
         col = max(len(qs), len(qdots))
         plotCount = 0
-        # q
+        # plot: q
         axs_q = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qs[i], 'J'+str(i+1)+' pos',
                                 sColor='blue', xLbl ='[cyc]', yLbl='[deg]') for i in range(len(qs))]
         plotCount = plotCount + len(qs)
-        # qdot
+        # plot: qdot
         axs_qdots = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qdots[i], 'J'+str(i+1)+' vel',
                                     sColor='green', xLbl ='[cyc]', yLbl='[deg/s]') for i in range(len(qdots))]
         plotCount = plotCount + len(qdots)
 
-#        ax1 = fig.add_subplot(2, 4, 1)
-#        ax2 = fig.add_subplot(2, 4, 2)
-#        ax3 = fig.add_subplot(2, 4, 3)
-#        ax4 = fig.add_subplot(2, 4, 4)
-#        ax5 = fig.add_subplot(2, 4, 5)
-#        ax6 = fig.add_subplot(2, 4, 6)
-#        ax7 = fig.add_subplot(2, 4, 7)
-#        ax8 = fig.add_subplot(2, 4, 8)
-        #各subplot領域にデータを渡す
-#        ax1.plot(x, y1, color=c1, label=l1)
-#        ax2.plot(x, y2, color=c2, label=l2)
-#        #各subplotにxラベルを追加
-#        ax1.set_xlabel(xl1)
-#        ax2.set_xlabel(xl2)
-#        #各subplotにyラベルを追加
-#        ax1.set_ylabel(yl1)
-#        ax2.set_ylabel(yl2)
-#        # 凡例表示
-#        ax1.legend(loc = 'upper right') 
-#        ax2.legend(loc = 'upper right') 
         fig.tight_layout()
         plt.show()
     
-
-
-    
 ## DataLogger
 class DataLogger:
-    def __init__(self, state : InState):
+    def __init__(self, state : SimState):
         self.__state = state
         self.__data = LogData()
-#        self.__timeBuf = RingBuffer(MAX_LOGGING_SIZE)
-#        self.__qBuf = RingBuffer(MAX_LOGGING_SIZE)
-#        self.__qdotBuf = RingBuffer(MAX_LOGGING_SIZE)
         self.__enabled = False
         self.__size = 0
 
@@ -262,11 +216,6 @@ class JointView:
     def updateActValues(self, q, dq):
         self.entry_q.configure(state='normal')
         self.entry_q.delete(0, tk.END)
-        
-        #        self.q_ = "{:.2f}".format(np.rad2deg(q))
-#        self.dq_ = "{:.2f}".format(np.rad2deg(dq))
-
-        
         self.entry_q.insert(tk.END, "{:.2f}".format(q))
         self.entry_q.configure(state='readonly')
 
@@ -276,7 +225,7 @@ class JointView:
         self.entry_dq.configure(state='readonly')
 
 class Debugger:
-    def __init__(self, state: InState):
+    def __init__(self, state: SimState):
         self.state_ = state
 
     def update(self):
@@ -591,7 +540,7 @@ cam = mj.MjvCamera()                        # Abstract camera
 opt = mj.MjvOption()                        # visualization options
 
 # Init Internal State
-state = InState(model.nu)
+state = SimState(model.nu)
 
 # Init Debugger
 debugger = Debugger(state)
