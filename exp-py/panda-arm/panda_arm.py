@@ -152,11 +152,18 @@ class Graph:
 #        xl1, xl2 = 'x', 'x'
 #        yl1, yl2 = 'sin', 'cos'
         #グラフを表示する領域を，figオブジェクトとして作成。
-        fig = plt.figure(figsize = (15,6), facecolor='lightblue')
-        #グラフを描画するsubplot領域を作成。
-        row = 2; col = 4
+        fig = plt.figure(figsize = (22,5), facecolor='lightblue')
+        row = 2
+        col = max(len(qs), len(qdots))
+        plotCount = 0
         # q
-        axs = [self.__addPlot(fig, [row,col, i+1], t, qs[i], 'J'+str(i+1)) for i in range(len(qs))]
+        axs_q = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qs[i], 'J'+str(i+1)+' pos',
+                                sColor='blue', xLbl ='[cyc]', yLbl='[deg]') for i in range(len(qs))]
+        plotCount = plotCount + len(qs)
+        # qdot
+        axs_qdots = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qdots[i], 'J'+str(i+1)+' vel',
+                                    sColor='green', xLbl ='[cyc]', yLbl='[deg/s]') for i in range(len(qdots))]
+        plotCount = plotCount + len(qdots)
 
 #        ax1 = fig.add_subplot(2, 4, 1)
 #        ax2 = fig.add_subplot(2, 4, 2)
@@ -178,6 +185,7 @@ class Graph:
 #        # 凡例表示
 #        ax1.legend(loc = 'upper right') 
 #        ax2.legend(loc = 'upper right') 
+        fig.tight_layout()
         plt.show()
     
 
