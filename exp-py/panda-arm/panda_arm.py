@@ -3,189 +3,27 @@ from mujoco.glfw import glfw
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import queue
 import control
 import threading
 import tkinter as tk
 import tkinter.ttk as ttk
-import rtbWrapper as rtb
+import taskRequest as tr
 
-# commmon method
-# 
-# check if the string s is a number or not.
-# Note that the string including decimals returns true. 
-# 
-def isNum(s): 
-    try:
-        float(s)
-    except ValueError:
-        return False
-    else:
-        return True
+import lowLevelController as llc
 
-def transpose(list_org): # doubly list e.g. [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
-    list_transposed = [list(x) for x in zip(*list_org)]
-    return list_transposed
+import motionController as mc
+
+import taskManagerService as tms
+import taskManager as tm
+
+
+
+import common as com
+import simState as ss
 
 # global settings
 np.set_printoptions(precision=2)
-
-class JointState:
-    def __init__(self):
-        self.q_ = 0 # [deg]
-        self.dq_ = 0 # [deg/s]
-        self.qtarget_ = 0 # [deg]
-
-    def updateBySimulation(self, q, dq):
-        self.q_ = np.rad2deg(q)
-        self.dq_ = np.rad2deg(dq)
-            
-class SimState:
-    def __init__(self, qSize):
-        self.joints_ = [JointState() for i in range(qSize)]
-        self.qsize_ = qSize
-        self.__time = 0
-        self.dataLogger = DataLogger(self)
-
-    def time(self):
-        return self.__time
-        
-    def qs(self):
-        return [self.joints_[i].q_ for i in range(self.qsize_)]
-
-    def qdots(self):
-        return [self.joints_[i].dq_ for i in range(self.qsize_)]
-
-    def updateBySimulation(self, data):
-        self.__time = self.__time+1
-        for i, jnt in enumerate(self.joints_):
-            jnt.updateBySimulation(data.qpos[i], data.qvel[i])
-        
-        self.dataLogger.log()
-
-    def startDataLog(self):
-        DEFAULT_SIZE = 100
-        self.dataLogger.startLog(DEFAULT_SIZE)
-
-    def endDataLog(self):
-        self.dataLogger.endLog()
-        
-    def showDataLog(self):
-        self.dataLogger.showLog()
-
-class RingBuffer:
-    def __init__(self, size):
-        self.buffer = [None for i in range(0, size)]
-        self.top = 0
-        self.bottom = 0
-        self.size = size
-        self.isFull = False
-
-    def __len__(self):
-        return self.bottom - self.top
-
-    def add(self, value):
-        self.buffer[self.bottom] = value
-        self.bottom = (self.bottom + 1) % len(self.buffer)
-        if(self.top == self.bottom):
-            self.isFull = True
-
-    def getVal(self, index=None):
-        if index is not None:
-            return self.buffer[index]
-
-        value = self.buffer[self.top]
-        self.top =(self.top + 1) % len(self.buffer)
-        return value
-    
-    def getList(self):
-        l = []
-        if(self.isFull): # todo test
-            l = self.buffer[self.bottom:]
-            l.extend(self.buffer[:self.bottom])
-        else:
-            l = self.buffer[:self.bottom]
-        return l
-
-class LogData:
-    def __init__(self):
-        MAX_LOGGING_SIZE = 100000
-        self.timeBuf = RingBuffer(MAX_LOGGING_SIZE)
-        self.qBuf = RingBuffer(MAX_LOGGING_SIZE)
-        self.qdotBuf = RingBuffer(MAX_LOGGING_SIZE)
-
-class Graph:
-    def __init__(self):
-        return
-    
-    def __addPlot(self, fig, pos, xs, ys, sName, 
-                  sColor='blue', xLbl ='x', yLbl='y'):
-        ax = fig.add_subplot(pos[0], pos[1], pos[2])
-        ax.plot(xs, ys, color=sColor, label=sName)
-        ax.set_xlabel(xLbl)
-        ax.set_ylabel(yLbl)
-        ax.legend(loc = 'upper right') 
-        return ax
-    
-    def show(self, data : LogData):
-        t = data.timeBuf.getList()
-        qs = transpose(data.qBuf.getList())
-        qdots = transpose(data.qdotBuf.getList())
-        
-        # Figure construction        
-        fig = plt.figure(figsize = (22,5), facecolor='lightblue')
-        row = 2
-        col = max(len(qs), len(qdots))
-        plotCount = 0
-        # plot: q
-        axs_q = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qs[i], 'J'+str(i+1)+' pos',
-                                sColor='blue', xLbl ='[cyc]', yLbl='[deg]') for i in range(len(qs))]
-        plotCount = plotCount + len(qs)
-        # plot: qdot
-        axs_qdots = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qdots[i], 'J'+str(i+1)+' vel',
-                                    sColor='green', xLbl ='[cyc]', yLbl='[deg/s]') for i in range(len(qdots))]
-        plotCount = plotCount + len(qdots)
-
-        fig.tight_layout()
-        plt.show()
-    
-## DataLogger
-class DataLogger:
-    def __init__(self, state : SimState):
-        self.__state = state
-        self.__data = LogData()
-        self.__enabled = False
-        self.__size = 0
-
-    def startLog(self, size):
-        if self.__enabled:
-            print('startLog Error: logging is already enabled.')
-            return
-        # temp
-        size = 100000
-        self.__data.timeBuf = RingBuffer(size)
-        self.__data.qBuf = RingBuffer(size)
-        self.__data.qdotBuf = RingBuffer(size)
-        self.__size = size
-        self.__enabled = True
-
-    def log(self):
-        if self.__enabled:
-            self.__data.timeBuf.add(state.time())    
-            self.__data.qBuf.add(state.qs())    
-            self.__data.qdotBuf.add(state.qdots())    
-
-    def endLog(self):
-        self.__enabled = False
-
-    def getLog_q(self):
-        return self.__data.qBuf.getList()
-
-    def getLog_qdot(self):
-        return self.__data.qdotBuf.getList()
-
-    def showLog(self):
-        g = Graph()
-        g.show(self.__data)
 
 class JointView:
     def __init__(self, frame, name, rowNum, state, index):
@@ -197,6 +35,8 @@ class JointView:
         self.btn_apply      = tk.Button(frame, text="apply", command=self.__onbtn_apply)
         self.__state        = state
         self.__index        = index
+        self.__jno          = index + 1 # to be refactored 
+        self.__requests     = queue.Queue()
         # placement
         self.label.grid(column= 0, row=rowNum)
         self.entry_q.grid(column=1, row=rowNum)
@@ -206,12 +46,14 @@ class JointView:
 
     def __getEntryValue(self, entry) -> float:
         s = entry.get()
-        if not isNum(s):
+        if not com.isNum(s):
             return 0. # todo to returns error in case of not number
         return float(s)
 
     def __onbtn_apply(self):
-        self.__state.joints_[self.__index].qtarget_ = np.deg2rad(self.__getEntryValue(self.entry_cq)) # todo to update index of qtarget_
+        cq = np.deg2rad(self.__getEntryValue(self.entry_cq))
+        self.__state.joints_[self.__index].qtarget_ = cq # todo to update index of qtarget_
+        self.__requests.put(tr.SingleJointMoveRequest(self.__jno, cq))
     
     def updateActValues(self, q, dq):
         self.entry_q.configure(state='normal')
@@ -223,25 +65,39 @@ class JointView:
         self.entry_dq.delete(0, tk.END)
         self.entry_dq.insert(tk.END, "{:.2f}".format(dq))
         self.entry_dq.configure(state='readonly')
+    
+    def getRequests(self):
+        requests = []
+        while self.__requests.not_empty():
+            requests.append(self.__requests.get())
+        return requests
+        
+    def getRequest(self):
+        return self.__requests.get()
+
 
 class Debugger:
-    def __init__(self, state: SimState):
+    def __init__(self, state: ss.SimState, taskManagerService : tms.TaskManagerService):
         self.state_ = state
+        self.__taskManagerService = taskManagerService
 
     def update(self):
         for i, jntView in enumerate(self.jntViews):
             jntView.updateActValues(self.state_.joints_[i].q_, self.state_.joints_[i].dq_)
+            request = jntView.getRequest()
+            if request is not None:
+                self.__taskManagerService.pushRequest(request)
 
         self.window.after(1000, self.update)
 
     def __onbtn_startDataLog(self):
-        state.startDataLog()
+        self.state_.startDataLog()
         
     def __onbtn_endDataLog(self):
-        state.endDataLog()        
+        self.state_.endDataLog()        
 
     def __onbtn_showDataLog(self):
-        state.showDataLog()        
+        self.state_.showDataLog()        
     
     def start(self):
         self.running = True
@@ -275,7 +131,7 @@ class Debugger:
         self.btn_endDataLog.grid(column=2, row=rowNum)
         self.btn_showDataLog.grid(column=3, row=rowNum)
 
-        self.jntViews = [JointView(self.jntFrame, 'J'+str(i+1), i+1, state, i) for i in range(state.qsize_)]
+        self.jntViews = [JointView(self.jntFrame, 'J'+str(i+1), i+1, self.state_, i) for i in range(self.state_.qsize_)]
         for jntView in self.jntViews:
             jntView.updateActValues(0, 0)
                 
@@ -393,65 +249,7 @@ def init_controller(model,data):
     # print("K = ",K)
 
 
-class pidController:
-    def __init__(self, model, data, kp, kd, ki):
-        # temp
-        #kp = 20
-        #kd = 2
-        #ki = 0.1
-        # temp end
 
-        self.model = model
-        self.data = data
-        self.kp_ = kp
-        self.kd_ = kd
-        self.ki_ = ki
-        self.epre_ = [0]*self.model.nu
-        self.ie_ = [0]*self.model.nu
-        self.target = [0]*self.model.nu
-        self.T = 1
-
-    def controller(self, model, data):
-        gc = rtb.calcGravComp(data.qpos)
-        e = self.target - data.qpos
-        de = (e - self.epre_)/self.T
-        self.ie_ = self.ie_ + (e+de)*self.T/2
-        u = self.kp_*e + self.kd_*de + self.ki_*self.ie_ + gc
-        ## set ctrl in mujoco
-        data.ctrl = u
-
-    def update(self, target):
-        self.target = target
-    
-def controller(model, data):
-    #put the controller here. This function is called inside the simulation.
-    # pass
-    # global K
-    K =10000
-    body_id = model.jnt('panda_joint1').id    
-
-    #1. apply congtrol u = -K*x
-#    x = np.array([data.qpos[0],data.qpos[1],data.qvel[0],data.qvel[1]])
-#    u = -K.dot(x)
-#    u = -K * data.qpos[0]
-#    global gCount
-#    if gCount % 1000 == 0:
-#        q = np.array(data.qpos)
-#        ctrl = np.array(data.ctrl)
-#        qfrc = np.array(data.qfrc_bias)
-#        print("q", q, "ctrl", ctrl, "qfrc", qfrc)
-#    gCount = gCount+1     
-
-    for i in range(model.nu):
-        data.ctrl[i] = data.qfrc_bias[i] *1
-
-    #2 apply disturbance torque
-#   tau_disturb_mean = 0
-#   tau_disturb_dev = 20
-#   tau_d0 = np.random.normal(tau_disturb_mean,tau_disturb_dev)
-#   tau_d1 = np.random.normal(tau_disturb_mean,0.25*tau_disturb_dev)
-#   data.qfrc_applied[0] = tau_d0
-#   data.qfrc_applied[1] = tau_d1
 
 def keyboard(window, key, scancode, act, mods):
     if act == glfw.PRESS and key == glfw.KEY_BACKSPACE:
@@ -526,6 +324,7 @@ def scroll(window, xoffset, yoffset):
 # definition
 global gCount
 gCount = 0
+initq = [0., 1.3, 0., 0., 0., 0., 0.]
 
 #get the full path
 dirname = os.path.dirname(__file__)
@@ -540,10 +339,24 @@ cam = mj.MjvCamera()                        # Abstract camera
 opt = mj.MjvOption()                        # visualization options
 
 # Init Internal State
-state = SimState(model.nu)
+simState = ss.SimState(model.nu)
+
+# Init lowLevelcontroller
+kp = 20
+kd = 0.5
+ki = 0.1
+lowLevelCon = llc.PIDController(model, data, kp, kd, ki)
+lowLevelCon.update(initq)
+mj.set_mjcb_control(lowLevelCon.controller)
+
+# Init MotionController
+motionCon = mc.MotionController()
+
+# Init TaskManager
+taskMgr = tm.TaskManager(simState, motionCon.getService())
 
 # Init Debugger
-debugger = Debugger(state)
+debugger = Debugger(simState, taskMgr.getService())
 debuggerThread = threading.Thread(target=debugger.start)
 debuggerThread.start()
 
@@ -579,30 +392,26 @@ cam.lookat =np.array([ 0.0 , 0.0 , 0.0 ])
 #initialize the controller
 ## temporary disabled
 #init_controller(model,data)
-initq = [0., 1.3, 0., 0., 0., 0., 0.]
-data.qpos = initq
+
 # state.qtarget_ = initq
+data.qpos = initq
 
-for i, jnt in enumerate(state.joints_):
+for i, jnt in enumerate(simState.joints_):
     jnt.qtarget_ = initq[i]
-
-
-#set the controller
-kp = 20
-kd = 0.5
-ki = 0.1
-controller = pidController(model, data, kp, kd, ki)
-controller.update(initq)
-mj.set_mjcb_control(controller.controller)
 
 while not glfw.window_should_close(window):
     time_prev = data.time
 
     while (data.time - time_prev < 1.0/60.0):
         mj.mj_step(model, data)
-        state.updateBySimulation(data)
-        qtargets = [state.joints_[i].qtarget_ for i in range(model.nu)]
-        controller.update(qtargets)
+        simState.updateBySimulation(data)
+        
+        taskMgr.tick()
+        motionCon.tick()
+        
+        # todo to change below
+        #qtargets = [simState.joints_[i].qtarget_ for i in range(model.nu)]
+        #lowLevelCon.update(qtargets)
 
     if (data.time>=simend):
         break
