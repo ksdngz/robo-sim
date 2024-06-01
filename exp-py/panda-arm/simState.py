@@ -28,7 +28,7 @@ class SimState:
         self.joints_ = [JointState() for i in range(qSize)]
         self.qsize_ = qSize
         self.__time = 0
-        self.dataLogger = dl.DataLogger(self)
+        self.dataLogger = dl.DataLogger()
 
     def time(self):
         return self.__time
@@ -44,7 +44,10 @@ class SimState:
         for i, jnt in enumerate(self.joints_):
             jnt.updateBySimulation(data.qpos[i], data.qvel[i])
         
-        self.dataLogger.log()
+        self.dataLogger.log(self.time(), self.qs(), self.qdots())        
+        #            self.__data.timeBuf.add(state.time())    
+        #            self.__data.qBuf.add(state.qs())    
+        #            self.__data.qdotBuf.add(state.qdots())            
 
     def startDataLog(self):
         DEFAULT_SIZE = 100

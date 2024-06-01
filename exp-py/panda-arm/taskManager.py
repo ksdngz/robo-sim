@@ -7,7 +7,7 @@ class TaskManager:
     def __init__(self,
                  simState : ss.SimState,
                  motionControlService : mcs.MotionControllerService):
-        self.__service = tms.taskManagerService()
+        self.__service = tms.TaskManagerService()
         self.__motionControlService = motionControlService
         self.__simState = simState
 
@@ -26,13 +26,14 @@ class TaskManager:
                 targetPos : float = args.get() # targetPos
 
                 # generate Traj
-                traj = mcs.mr.mo.Trajectory
+                traj = mcs.mr.mo.Trajectory()
                 startPos : float = self.__simState.qs()[qno]
                 ## temporal trajectory generation ##
-                T = 1000. # points num
+                T = 1000 # points num
                 for i in range(T):            
-                    p = startPos + (1 - np.cos(i/T))
-                    traj.push(i, p)
+                    p = startPos + (1 - np.cos(float(i/T)))
+                    point = mcs.mr.mo.Point(i, p)
+                    traj.push(point)
                 motion = mcs.mr.mo.Motion(traj)
 
                 # create motionRequest

@@ -59,8 +59,8 @@ class Graph:
 
 ## DataLogger
 class DataLogger:
-    def __init__(self, state : ss.SimState):
-        self.__state = state
+    def __init__(self):
+#        self.__state = state
         self.__data = LogData()
         self.__enabled = False
         self.__size = 0
@@ -77,11 +77,17 @@ class DataLogger:
         self.__size = size
         self.__enabled = True
 
-    def log(self):
+#    def log(self, state : ss.SimState):
+#        if self.__enabled:
+#            self.__data.timeBuf.add(state.time())    
+#            self.__data.qBuf.add(state.qs())    
+#            self.__data.qdotBuf.add(state.qdots())    
+
+    def log(self, time, qs, qdots):
         if self.__enabled:
-            self.__data.timeBuf.add(self.__state.time())    
-            self.__data.qBuf.add(self.__state.qs())    
-            self.__data.qdotBuf.add(self.__state.qdots())    
+            self.__data.timeBuf.add(time)    
+            self.__data.qBuf.add(qs)    
+            self.__data.qdotBuf.add(qdots)    
 
     def endLog(self):
         self.__enabled = False

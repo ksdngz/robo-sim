@@ -19,6 +19,6 @@ class TaskRequest:
 class SingleJointMoveRequest(TaskRequest):
     def __init__(self, jno, targetPos):
         super().__init__(TaskRequestType.SINGLE_JOINT_MOVE)
-        self.__args.put(jno)
-        self.__args.put(targetPos)
+        self.getArgs().put(jno)
+        self.getArgs().put(targetPos)
         

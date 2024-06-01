@@ -73,8 +73,9 @@ class JointView:
         return requests
         
     def getRequest(self):
-        return self.__requests.get()
-
+        if not self.__requests.empty():
+            return self.__requests.get()
+        return None
 
 class Debugger:
     def __init__(self, state: ss.SimState, taskManagerService : tms.TaskManagerService):
@@ -350,7 +351,7 @@ lowLevelCon.update(initq)
 mj.set_mjcb_control(lowLevelCon.controller)
 
 # Init MotionController
-motionCon = mc.MotionController()
+motionCon = mc.MotionController(lowLevelCon)
 
 # Init TaskManager
 taskMgr = tm.TaskManager(simState, motionCon.getService())

@@ -1,8 +1,15 @@
+import queue
 import motionRequest as mr
 
 class MotionControllerService:
     def __init__(self):
-        pass
+        self.__requests = queue.Queue()
     
     def pushRequest(self, request : mr.MotionRequest):
-        pass
+        self.__requests.put(request)
+
+    def hasRequest(self):
+        return not self.__requests.empty()
+
+    def popRequest(self):
+        return self.__requests.get()

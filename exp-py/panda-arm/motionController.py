@@ -12,26 +12,27 @@ class MotionController:
 
     def tick(self):
         if self.__execMotion == None:
-            req : mcs.mr.MotionRequest = self.__service.popRequest()
-            type : mcs.mr.MotionRequestType =  req.getType()
-            args = req.getArgs()
-            # parse arguments
-            if type == mcs.mr.MotionRequestType.SINGLE_JOINT_MOTION: 
+            if self.__service.hasRequest():
+                req : mcs.mr.MotionRequest = self.__service.popRequest()
+                type : mcs.mr.MotionRequestType =  req.getType()
+                args = req.getArgs()
                 # parse arguments
-                qno : int = args.get() # qno
-                motion : mcs.mr.mo.Motion = args.get() # motion
-                
-                # set executed motion
-                self.__execMotion = (qno, motion)
+                if type == mcs.mr.MotionRequestType.SINGLE_JOINT_MOTION: 
+                    # parse arguments
+                    qno : int = args.get() # qno
+                    motion : mcs.mr.mo.Motion = args.get() # motion
+                    
+                    # set executed motion
+                    self.__execMotion = (qno, motion)
         
         # tick
         if self.__execMotion is not None:
             qno, motion = self.__execMotion
-            if not motion.__traj.isEmpty():
-                _, p = motion.__traj.pop()
+            if not motion.traj().isEmpty():
+                point = motion.traj().pop() 
                 cmdPos = self.__llc.getCmdPos()
                 index = qno-1
-                cmdPos[index] = p            
+                cmdPos[index] = point.pos            
                 self.__llc.update(cmdPos)
             else:
                 self.__execMotion = None

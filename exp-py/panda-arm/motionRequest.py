@@ -20,8 +20,8 @@ class MotionRequest:
 class SingleJointMotionRequest(MotionRequest):
     def __init__(self, qno: int, motion : mo.Motion):
         super().__init__(MotionRequestType.SINGLE_JOINT_MOTION)
-        self.__args.put(qno)
-        self.__args.put(motion)
+        self.getArgs().put(qno)
+        self.getArgs().put(motion)
 
     
     
