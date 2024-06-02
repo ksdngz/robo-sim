@@ -28,7 +28,7 @@ class PIDController(LowLevelController):
         self.ki_ = ki
         self.epre_ = [0]*self.model.nu
         self.ie_ = [0]*self.model.nu
-        self.targetPos = [0]*self.model.nu
+        self.targetPos = [0]*self.model.nu #[rad]
         self.T = 1
 
     def controller(self, model, data):

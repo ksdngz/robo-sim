@@ -23,18 +23,25 @@ class TaskManager:
             if type == tms.tr.TaskRequestType.SINGLE_JOINT_MOVE: 
                 # parse arguments
                 qno : int = args.get() # qno
-                targetPos : float = args.get() # targetPos
+                targetPos : float = args.get() # [deg]
 
                 # generate Traj
                 traj = mcs.mr.mo.Trajectory()
-                startPos : float = self.__simState.qs()[qno]
+                index = qno - 1
+                startPos : float = self.__simState.qs()[index] # [deg]
                 ## temporal trajectory generation ##
                 T = 1000 # points num
-                for i in range(T):            
-                    p = startPos + (1 - np.cos(float(i/T)))
-                    point = mcs.mr.mo.Point(i, p)
+                
+                plistDbg =[]
+                
+                for i in range(T):
+                    rate : float = float(i/T)
+                    p = startPos + (targetPos-startPos)*(1 - np.cos(np.pi/2*rate)) # [deg]
+                    plistDbg.append(p)                    
+                    point = mcs.mr.mo.Point(i, np.deg2rad(p)) # [t, p[rad]]
                     traj.push(point)
                 motion = mcs.mr.mo.Motion(traj)
+                print(plistDbg)
 
                 # create motionRequest
                 request : mcs.mr.MotionRequest = mcs.mr.SingleJointMotionRequest(qno, motion)

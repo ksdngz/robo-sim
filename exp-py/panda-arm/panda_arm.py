@@ -51,7 +51,7 @@ class JointView:
         return float(s)
 
     def __onbtn_apply(self):
-        cq = np.deg2rad(self.__getEntryValue(self.entry_cq))
+        cq = self.__getEntryValue(self.entry_cq) # [deg]
         self.__state.joints_[self.__index].qtarget_ = cq # todo to update index of qtarget_
         self.__requests.put(tr.SingleJointMoveRequest(self.__jno, cq))
     
