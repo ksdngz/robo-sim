@@ -17,11 +17,15 @@ class JointState:
     def __init__(self):
         self.q_ = 0 # [deg]
         self.dq_ = 0 # [deg/s]
+        self.qcmd_ = 0 # [deg]
+        self.dqcmd_ = 0 # [deg]
         self.qtarget_ = 0 # [deg]
 
-    def updateBySimulation(self, q, dq):
+    def update(self, q, dq, qcmd, dqcmd):
         self.q_ = np.rad2deg(q)
         self.dq_ = np.rad2deg(dq)
+        self.qcmd_ = np.rad2deg(qcmd)
+        self.dqcmd_ = np.rad2deg(dqcmd)
             
 class SimState:
     def __init__(self, qSize):
@@ -39,12 +43,18 @@ class SimState:
     def qdots(self):
         return [self.joints_[i].dq_ for i in range(self.qsize_)]
 
-    def updateBySimulation(self, data):
+    def qcmds(self):
+        return [self.joints_[i].qcmd_ for i in range(self.qsize_)]
+
+    def qdotcmds(self):
+        return [self.joints_[i].dqcmd_ for i in range(self.qsize_)]
+
+    def update(self, data, qcmd, dqcmd):
         self.__time = self.__time+1
         for i, jnt in enumerate(self.joints_):
-            jnt.updateBySimulation(data.qpos[i], data.qvel[i])
+            jnt.update(data.qpos[i], data.qvel[i], qcmd[i], dqcmd[i])
         
-        self.dataLogger.log(self.time(), self.qs(), self.qdots())        
+        self.dataLogger.log(self.time(), self.qs(), self.qdots(), self.qcmds(), self.qdotcmds())        
         #            self.__data.timeBuf.add(state.time())    
         #            self.__data.qBuf.add(state.qs())    
         #            self.__data.qdotBuf.add(state.qdots())            

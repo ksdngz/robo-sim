@@ -15,12 +15,6 @@ class LowLevelController:
 
 class PIDController(LowLevelController):
     def __init__(self, model, data, kp, kd, ki):
-        # temp
-        #kp = 20
-        #kd = 2
-        #ki = 0.1
-        # temp end
-
         self.model = model
         self.data = data
         self.kp_ = kp
@@ -28,23 +22,30 @@ class PIDController(LowLevelController):
         self.ki_ = ki
         self.epre_ = [0]*self.model.nu
         self.ie_ = [0]*self.model.nu
-        self.targetPos = [0]*self.model.nu #[rad]
+        self.qcmd_ = [0]*self.model.nu #[rad]
+        self.qdcmd_ = [0]*self.model.nu #[rad/s]
         self.T = 1
 
     def controller(self, model, data):
         gc = rtb.calcGravComp(data.qpos)
-        e = self.targetPos - data.qpos
+        e = self.qcmd_ - data.qpos
         de = (e - self.epre_)/self.T
         self.ie_ = self.ie_ + (e+de)*self.T/2
         u = self.kp_*e + self.kd_*de + self.ki_*self.ie_ + gc
         ## set ctrl in mujoco
         data.ctrl = u
 
-    def update(self, targetPos):
-        self.targetPos = targetPos
+    def update(self, qcmd):
+        for i in range(len(self.qcmd_)):
+            self.qdcmd_[i] = (qcmd[i] - self.qcmd_[i])/self.T 
+        self.qcmd_ = qcmd
 
     def getCmdPos(self):
-        return self.targetPos
+        return self.qcmd_
+
+    def getCmdVel(self):
+        return self.qdcmd_
+
     
 #def controller(model, data):
     #put the controller here. This function is called inside the simulation.

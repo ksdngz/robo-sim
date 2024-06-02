@@ -19,16 +19,19 @@ class LogData:
         MAX_LOGGING_SIZE = 100000
         self.timeBuf = cm.RingBuffer(MAX_LOGGING_SIZE)
         self.qBuf = cm.RingBuffer(MAX_LOGGING_SIZE)
-        self.qdotBuf = cm.RingBuffer(MAX_LOGGING_SIZE)
+        self.qdBuf = cm.RingBuffer(MAX_LOGGING_SIZE)
+        self.qcmdBuf = cm.RingBuffer(MAX_LOGGING_SIZE)
+        self.qdcmdBuf = cm.RingBuffer(MAX_LOGGING_SIZE)
 
 class Graph:
     def __init__(self):
         return
     
-    def __addPlot(self, fig, pos, xs, ys, sName, 
+    def __addPlot(self, fig, pos, xs, ys, ys2, sName, 
                   sColor='blue', xLbl ='x', yLbl='y'):
         ax = fig.add_subplot(pos[0], pos[1], pos[2])
         ax.plot(xs, ys, color=sColor, label=sName)
+        ax.plot(xs, ys2, color='red', label=sName)
         ax.set_xlabel(xLbl)
         ax.set_ylabel(yLbl)
         ax.legend(loc = 'upper right') 
@@ -37,7 +40,9 @@ class Graph:
     def show(self, data : LogData):
         t = data.timeBuf.getList()
         qs = cm.transpose(data.qBuf.getList())
-        qdots = cm.transpose(data.qdotBuf.getList())
+        qdots = cm.transpose(data.qdBuf.getList())
+        qcmds = cm.transpose(data.qcmdBuf.getList())
+        qdcmds = cm.transpose(data.qdcmdBuf.getList())
         
         # Figure construction        
         fig = plt.figure(figsize = (22,5), facecolor='lightblue')
@@ -45,11 +50,11 @@ class Graph:
         col = max(len(qs), len(qdots))
         plotCount = 0
         # plot: q
-        axs_q = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qs[i], 'J'+str(i+1)+' pos',
+        axs_q = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qs[i], qcmds[i], 'J'+str(i+1)+' pos',
                                 sColor='blue', xLbl ='[cyc]', yLbl='[deg]') for i in range(len(qs))]
         plotCount = plotCount + len(qs)
         # plot: qdot
-        axs_qdots = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qdots[i], 'J'+str(i+1)+' vel',
+        axs_qdots = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qdots[i], qdcmds[i], 'J'+str(i+1)+' vel',
                                     sColor='green', xLbl ='[cyc]', yLbl='[deg/s]') for i in range(len(qdots))]
         plotCount = plotCount + len(qdots)
 
@@ -76,7 +81,9 @@ class DataLogger:
         size = 100000
         self.__data.timeBuf = cm.RingBuffer(size)
         self.__data.qBuf = cm.RingBuffer(size)
-        self.__data.qdotBuf = cm.RingBuffer(size)
+        self.__data.qdBuf = cm.RingBuffer(size)
+        self.__data.qcmdBuf = cm.RingBuffer(size)
+        self.__data.qdcmdBuf = cm.RingBuffer(size)
         self.__size = size
         self.__enabled = True
 
@@ -86,11 +93,13 @@ class DataLogger:
 #            self.__data.qBuf.add(state.qs())    
 #            self.__data.qdotBuf.add(state.qdots())    
 
-    def log(self, time, qs, qdots):
+    def log(self, time, qs, qdots, qcmds, qdcmds):
         if self.__enabled:
             self.__data.timeBuf.add(time)    
             self.__data.qBuf.add(qs)    
-            self.__data.qdotBuf.add(qdots)    
+            self.__data.qdBuf.add(qdots)    
+            self.__data.qcmdBuf.add(qcmds)    
+            self.__data.qdcmdBuf.add(qdcmds)    
 
     def endLog(self):
         self.__enabled = False

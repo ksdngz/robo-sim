@@ -265,7 +265,7 @@ while not glfw.window_should_close(window):
 
     while (data.time - time_prev < 1.0/60.0):
         mj.mj_step(model, data)
-        simState.updateBySimulation(data)
+        simState.update(data, lowLevelCon.getCmdPos(), lowLevelCon.getCmdVel())
         
         taskMgr.tick()
         motionCon.tick()
