@@ -56,6 +56,9 @@ class Graph:
         fig.tight_layout()
         plt.show()
     
+    def quickShow(xSeries,ySeries):
+        plt.plot(xSeries, ySeries)
+        plt.show()        
 
 ## DataLogger
 class DataLogger:

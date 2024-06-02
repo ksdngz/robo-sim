@@ -3,6 +3,8 @@ import taskManagerService as tms
 import motionControllerService as mcs
 import simState as ss
 
+import dataLogger as dl
+
 class TaskManager:
     def __init__(self,
                  simState : ss.SimState,
@@ -33,15 +35,18 @@ class TaskManager:
                 T = 1000 # points num
                 
                 plistDbg =[]
+                tlistDbg =[]
                 
                 for i in range(T):
                     rate : float = float(i/T)
-                    p = startPos + (targetPos-startPos)*(1 - np.cos(np.pi/2*rate)) # [deg]
+                    p = startPos + (targetPos-startPos)*(1 - np.cos(np.pi*rate))/2 # [deg]
+                    tlistDbg.append(i)
                     plistDbg.append(p)                    
                     point = mcs.mr.mo.Point(i, np.deg2rad(p)) # [t, p[rad]]
                     traj.push(point)
                 motion = mcs.mr.mo.Motion(traj)
                 print(plistDbg)
+                dl.Graph.quickShow(tlistDbg, plistDbg)
 
                 # create motionRequest
                 request : mcs.mr.MotionRequest = mcs.mr.SingleJointMotionRequest(qno, motion)
