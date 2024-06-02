@@ -32,21 +32,23 @@ class TaskManager:
                 index = qno - 1
                 startPos : float = self.__simState.qs()[index] # [deg]
                 ## temporal trajectory generation ##
-                T = 1000 # points num
-                
-                plistDbg =[]
-                tlistDbg =[]
-                
+                T = 1000 # points num                
+                # for debugging
+                #plistDbg =[]
+                #tlistDbg =[]
+
                 for i in range(T):
                     rate : float = float(i/T)
                     p = startPos + (targetPos-startPos)*(1 - np.cos(np.pi*rate))/2 # [deg]
-                    tlistDbg.append(i)
-                    plistDbg.append(p)                    
+                    # for debugging
+                    #tlistDbg.append(i)
+                    #plistDbg.append(p)                    
                     point = mcs.mr.mo.Point(i, np.deg2rad(p)) # [t, p[rad]]
                     traj.push(point)
+                
                 motion = mcs.mr.mo.Motion(traj)
-                print(plistDbg)
-                dl.Graph.quickShow(tlistDbg, plistDbg)
+                # for debugging
+                #dl.Graph.quickShow(tlistDbg, plistDbg)
 
                 # create motionRequest
                 request : mcs.mr.MotionRequest = mcs.mr.SingleJointMotionRequest(qno, motion)
