@@ -1,7 +1,7 @@
 import rtbWrapper as rtb
 
 class LowLevelController:
-    def controller(self, model, data):
+    def tick(self, model, data):
         print('Error: superClass method is called.')
         assert()
 
@@ -26,7 +26,7 @@ class PIDController(LowLevelController):
         self.qdcmd_ = [0]*self.model.nu #[rad/s]
         self.T = 1
 
-    def controller(self, model, data):
+    def tick(self, model, data):
         gc = rtb.calcGravComp(data.qpos)
         e = self.qcmd_ - data.qpos
         de = (e - self.epre_)/self.T

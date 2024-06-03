@@ -208,7 +208,7 @@ kp = 100; kd = 0; ki = 0 # only K_p
 
 lowLevelCon = llc.PIDController(model, data, kp, kd, ki)
 lowLevelCon.update(initq)
-mj.set_mjcb_control(lowLevelCon.controller)
+#mj.set_mjcb_control(lowLevelCon.controller)
 
 # Init MotionController
 motionCon = mc.MotionController(lowLevelCon)
@@ -266,14 +266,10 @@ while not glfw.window_should_close(window):
     while (data.time - time_prev < 1.0/60.0):
         mj.mj_step(model, data)
         simState.update(data, lowLevelCon.getCmdPos(), lowLevelCon.getCmdVel())
-        
         taskMgr.tick()
         motionCon.tick()
+        lowLevelCon.tick(model, data)
         
-        # todo to change below
-        #qtargets = [simState.joints_[i].qtarget_ for i in range(model.nu)]
-        #lowLevelCon.update(qtargets)
-
     if (data.time>=simend):
         break
 
