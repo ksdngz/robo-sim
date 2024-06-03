@@ -1,6 +1,6 @@
 import queue
 from enum import Enum
-import motion as mo
+from motioncon import motion as mo
 
 class MotionRequestType(Enum):
     NONE = 0

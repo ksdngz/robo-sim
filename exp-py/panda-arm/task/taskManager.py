@@ -1,6 +1,6 @@
 import numpy as np
-import taskManagerService as tms
-import motionControllerService as mcs
+from task import taskManagerService as tms
+from motioncon import motionControllerService as mcs
 import simState as ss
 
 import dataLogger as dl

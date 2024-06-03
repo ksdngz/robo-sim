@@ -10,9 +10,9 @@ from mujoco.glfw import glfw
 
 import common as com
 import debugger as dbg
-import lowLevelController as llc
-import motionController as mc
-import taskManager as tm
+from lowlevelcon import lowLevelController as llc
+from motioncon import motionController as mc
+from task import taskManager as tm
 import simState as ss
 
 # global settings

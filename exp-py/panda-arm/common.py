@@ -9,8 +9,7 @@ import threading
 import tkinter as tk
 import tkinter.ttk as ttk
 import rtbWrapper as rtb
-import taskRequest as taskReq
-
+from task import taskRequest as taskReq
 
 # commmon method
 # 

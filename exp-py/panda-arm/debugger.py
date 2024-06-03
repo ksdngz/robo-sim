@@ -2,9 +2,9 @@ import queue
 import tkinter as tk
 import tkinter.ttk as ttk
 import common as com
-import taskRequest as tr
 import simState as ss
-import taskManagerService as tms
+from task import taskRequest as tr
+from task import taskManagerService as tms
 
 class JointView:
     def __init__(self, frame, name, rowNum, state, index):

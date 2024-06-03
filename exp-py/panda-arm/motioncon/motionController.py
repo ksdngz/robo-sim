@@ -1,5 +1,5 @@
-import motionControllerService as mcs
-import lowLevelController as llc
+from motioncon import motionControllerService as mcs
+from lowlevelcon import lowLevelController as llc
 
 class MotionController:
     def __init__(self, lowLevelCon : llc.LowLevelController):
