@@ -27,11 +27,11 @@ class Graph:
     def __init__(self):
         return
     
-    def __addPlot(self, fig, pos, xs, ys, ys2, sName, 
+    def __addPlot(self, fig, pos, xs, ys, ys2, lblName1, lblName2,
                   sColor='blue', xLbl ='x', yLbl='y'):
         ax = fig.add_subplot(pos[0], pos[1], pos[2])
-        ax.plot(xs, ys, color=sColor, label=sName)
-        ax.plot(xs, ys2, color='red', label=sName)
+        ax.plot(xs, ys, color=sColor, label=lblName1)
+        ax.plot(xs, ys2, color='red', label=lblName2)
         ax.set_xlabel(xLbl)
         ax.set_ylabel(yLbl)
         ax.legend(loc = 'upper right') 
@@ -50,11 +50,11 @@ class Graph:
         col = max(len(qs), len(qdots))
         plotCount = 0
         # plot: q
-        axs_q = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qs[i], qcmds[i], 'J'+str(i+1)+' pos',
+        axs_q = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qs[i], qcmds[i], 'J'+str(i+1)+'act pos', 'J'+str(i+1)+'cmd pos',
                                 sColor='blue', xLbl ='[cyc]', yLbl='[deg]') for i in range(len(qs))]
         plotCount = plotCount + len(qs)
         # plot: qdot
-        axs_qdots = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qdots[i], qdcmds[i], 'J'+str(i+1)+' vel',
+        axs_qdots = [self.__addPlot(fig, [row,col, plotCount+i+1], t, qdots[i], qdcmds[i], 'J'+str(i+1)+'act vel', 'J'+str(i+1)+'cmd vel',
                                     sColor='green', xLbl ='[cyc]', yLbl='[deg/s]') for i in range(len(qdots))]
         plotCount = plotCount + len(qdots)
 
