@@ -58,6 +58,31 @@ class JointView:
             return self.__requests.get()
         return None
 
+class PoseView:
+    def __init__(self, frame, name):
+        ENTRY_WIDTH = 7
+        CARTESIAN_POSE_SIZE = 6
+        ROW_NUM = 1
+        self.label          = tk.Label(frame, text=name)
+        self.entries        = [tk.Entry(frame, state='readonly', width=ENTRY_WIDTH) for i in range(CARTESIAN_POSE_SIZE) ]
+        # self.btn_apply      = tk.Button(frame, text="apply", command=self.__onbtn_apply)
+        #self.__state        = state
+        #self.__index        = index
+        #self.__jno          = index + 1 # to be refactored 
+        #self.__requests     = queue.Queue()
+        # placement
+        self.label.grid(column= 0, row=ROW_NUM)
+        for i, entry in enumerate(self.entries):
+            entry.grid(column=i+1, row=ROW_NUM)
+
+    def updateActValues(self, 
+                        pose: list[float]) -> None:
+        for i,entry in enumerate(self.entries):
+            entry.configure(state='normal')
+            entry.delete(0, tk.END)
+            entry.insert(tk.END, "{:.2f}".format(pose[i]))
+            entry.configure(state='readonly')
+
 class Debugger:
     def __init__(self, state: ss.SimState, taskManagerService : tms.TaskManagerService):
         self.state_ = state
@@ -69,6 +94,8 @@ class Debugger:
             request = jntView.getRequest()
             if request is not None:
                 self.__taskManagerService.pushRequest(request)
+
+        self.tcpViews.updateActValues(self.state_.tcpPose())
 
         self.window.after(1000, self.update)
 
@@ -89,10 +116,12 @@ class Debugger:
 
         # frame
         self.jntFrame = tk.Frame(self.window)
+        self.tcpFrame = tk.Frame(self.window)
         self.datalogFrame = tk.Frame(self.window)
         # frame layout
         self.jntFrame.grid(column=1, row=0)
-        self.datalogFrame.grid(column=2, row=0)
+        self.tcpFrame.grid(column=1, row=2)
+        self.datalogFrame.grid(column=1, row=1)
 
         # Joint Widgets
         titleRow = 0
@@ -102,6 +131,21 @@ class Debugger:
         label_q.grid(column=1, row=titleRow)
         label_dq.grid(column=2, row=titleRow)
         label_cq.grid(column=3, row=titleRow)
+
+        # tcp Widgets
+        titleRow = 0
+        label_x = tk.Label(self.tcpFrame, text='x[m]')
+        label_y = tk.Label(self.tcpFrame, text='y[m]')
+        label_z = tk.Label(self.tcpFrame, text='z[m]')
+        label_r = tk.Label(self.tcpFrame, text='r[deg]')
+        label_p = tk.Label(self.tcpFrame, text='p[deg]')
+        label_y = tk.Label(self.tcpFrame, text='y[deg]')
+        label_x.grid(column=1, row=titleRow)
+        label_y.grid(column=2, row=titleRow)
+        label_z.grid(column=3, row=titleRow)
+        label_r.grid(column=4, row=titleRow)
+        label_p.grid(column=5, row=titleRow)
+        label_y.grid(column=6, row=titleRow)
 
         # Datalog Widgets
         self.btn_startDataLog = tk.Button(self.datalogFrame, text="start", command=self.__onbtn_startDataLog)
@@ -116,7 +160,12 @@ class Debugger:
         self.jntViews = [JointView(self.jntFrame, 'J'+str(i+1), i+1, self.state_, i) for i in range(self.state_.qsize_)]
         for jntView in self.jntViews:
             jntView.updateActValues(0, 0)
-                
+        
+        self.tcpViews = PoseView(self.tcpFrame, 'tcp')
+        pose = [0]*6
+        self.tcpViews.updateActValues(pose)
+        
+        
         # Widget
         self.update()
         self.window.mainloop()

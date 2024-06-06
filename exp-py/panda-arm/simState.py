@@ -2,6 +2,7 @@ import mujoco as mj
 from mujoco.glfw import glfw
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.spatial.transform import Rotation
 import os
 import queue
 import control
@@ -27,9 +28,27 @@ class JointState:
         self.qcmd_ = np.rad2deg(qcmd)
         self.dqcmd_ = np.rad2deg(dqcmd)
             
+class TcpState:
+    def __init__(self):
+        self.__pos : list[float] = [0.]*3
+        self.__rot : list[float] = [0.]*3        
+
+    def update(self, 
+               pos: list[float], 
+               rot: list[float]):
+        self.__pos = pos
+        self.__rot = rot
+    
+    def pose(self) -> list[float]:
+        pose : list[float] = []
+        pose.extend(self.__pos)
+        pose.extend(self.__rot)
+        return pose
+
 class SimState:
     def __init__(self, qSize):
         self.joints_ = [JointState() for i in range(qSize)]
+        self.__tcp = TcpState()
         self.qsize_ = qSize
         self.__time = 0
         self.dataLogger = dl.DataLogger()
@@ -49,10 +68,26 @@ class SimState:
     def qdotcmds(self):
         return [self.joints_[i].dqcmd_ for i in range(self.qsize_)]
 
+    def tcpPose(self):
+        return self.__tcp.pose()
+
     def update(self, data, qcmd, dqcmd):
         self.__time = self.__time+1
         for i, jnt in enumerate(self.joints_):
             jnt.update(data.qpos[i], data.qvel[i], qcmd[i], dqcmd[i])
+        
+        #index_tcp = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, 'panda_link7')
+        index_tcp = 7 # todo to be refactored
+        # print('panda_link7 pose', data.xpos[i], data.xquat[i])
+        # to do change from quat to rpy
+        rpy = [0]*3
+        #data.xquat[index_tcp]
+        
+        quat = np.array(data.xquat[index_tcp])
+        rot = Rotation.from_quat(quat)
+        angle = rot.as_euler('ZYX', degrees=True)
+        
+        self.__tcp.update(data.xpos[index_tcp], angle)
         
         self.dataLogger.log(self.time(), self.qs(), self.qdots(), self.qcmds(), self.qdotcmds())        
         #            self.__data.timeBuf.add(state.time())    
