@@ -253,7 +253,6 @@ cam.lookat =np.array([ 0.0 , 0.0 , 0.0 ])
 #initialize the controller
 ## temporary disabled
 #init_controller(model,data)
-dbgCount = 0
 
 # state.qtarget_ = initq
 data.qpos = initq
@@ -270,14 +269,6 @@ while not glfw.window_should_close(window):
         taskMgr.tick()
         motionCon.tick()
         lowLevelCon.tick(model, data)
-        
-########        
-        if dbgCount % 100 == 0:
-            i = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, 'panda_link7')
-            print('panda_link7 pose', data.xpos[i], data.xquat[i])
-        
-        dbgCount = dbgCount+1
-########
                 
     if (data.time>=simend):
         break
