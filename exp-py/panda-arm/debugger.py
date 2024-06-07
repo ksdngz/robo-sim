@@ -34,7 +34,9 @@ class JointView:
     def __onbtn_apply(self):
         cq = self.__getEntryValue(self.entry_cq) # [deg]
         self.__state.joints_[self.__index].qtarget_ = cq # todo to update index of qtarget_
-        self.__requests.put(tr.SingleJointMoveRequest(self.__jno, cq))
+        targets : list[tuple[int, float]] = []
+        targets.append((self.__jno, cq))
+        self.__requests.put(tr.MultiJointMoveRequest(targets))
     
     def updateActValues(self, q, dq):
         self.entry_q.configure(state='normal')
@@ -112,7 +114,7 @@ class Debugger:
         self.running = True
         self.window = tk.Tk()
         self.window.title("Debugger")
-        self.window.geometry('540x240')
+        self.window.geometry('540x340')
 
         # frame
         self.jntFrame = tk.Frame(self.window)

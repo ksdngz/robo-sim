@@ -5,6 +5,7 @@ from motioncon import motion as mo
 class MotionRequestType(Enum):
     NONE = 0
     SINGLE_JOINT_MOTION = 1
+    MULTI_JOINT_MOTION = 2
 
 class MotionRequest:
     def __init__(self, requstType: MotionRequestType):
@@ -23,5 +24,9 @@ class SingleJointMotionRequest(MotionRequest):
         self.getArgs().put(qno)
         self.getArgs().put(motion)
 
+class MultiJointMotionRequest(MotionRequest):
+    def __init__(self, motion : mo.Motion):
+        super().__init__(MotionRequestType.MULTI_JOINT_MOTION)
+        self.getArgs().put(motion)
     
-    
+

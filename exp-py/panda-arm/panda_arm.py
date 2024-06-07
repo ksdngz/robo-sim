@@ -185,7 +185,9 @@ def scroll(window, xoffset, yoffset):
 # definition
 global gCount
 gCount = 0
-initq = [0., 1.3, 0., 0., 0., 0., 0.]
+initq_deg = [0, 10, 0, -150, 0, 180, 0]
+#initq = [0., 1.3, 0., 0., 0., 0., 0.]
+initq = [np.deg2rad(q) for q in initq_deg]
 
 #get the full path
 dirname = os.path.dirname(__file__)
