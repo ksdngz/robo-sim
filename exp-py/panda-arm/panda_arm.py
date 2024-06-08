@@ -9,7 +9,7 @@ import mujoco as mj
 from mujoco.glfw import glfw
 
 import common as com
-import debugger as dbg
+from debugger import debugger as dbg
 from lowlevelcon import lowLevelController as llc
 from motioncon import motionController as mc
 from task import taskManager as tm

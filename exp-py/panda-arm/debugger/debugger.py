@@ -1,7 +1,7 @@
 import queue
 import tkinter as tk
-import tkinter.ttk as ttk
-import common as com
+#import tkinter.ttk as ttk
+from common import common as com
 import simState as ss
 from task import taskRequest as tr
 from task import taskManagerService as tms

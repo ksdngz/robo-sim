@@ -3,7 +3,7 @@ from task import taskManagerService as tms
 from motioncon import motionControllerService as mcs
 import simState as ss
 
-import dataLogger as dl
+#import dataLogger as dl
 
 class SingleSignedProfiler:
     @classmethod

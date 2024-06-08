@@ -1,4 +1,4 @@
-import rtbWrapper as rtb
+import external.rtbWrapper as rtb
 
 class LowLevelController:
     def tick(self, model, data):
