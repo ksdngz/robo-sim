@@ -33,6 +33,14 @@ class JointView:
         self.entry_cq.grid(column=colNum, row=3)
         self.btn_apply.grid(column=colNum, row=4)
 
+    @property
+    def cq(self) -> float:
+        return self.__getEntryValue(self.entry_cq)
+
+    @property
+    def jno(self) -> int:
+        return self.__jno
+        
     def __getEntryValue(self, entry) -> float:
         s = entry.get()
         if not com.isNum(s):
@@ -96,14 +104,22 @@ class Debugger:
     def __init__(self, state: ss.SimState, taskManagerService : tms.TaskManagerService):
         self.state_ = state
         self.__taskManagerService = taskManagerService
+        self.__allJointsRequest = queue.Queue()
 
     def update(self):
+        # joint
         for i, jntView in enumerate(self.jntViews):
             jntView.updateActValues(self.state_.joints_[i].q_, self.state_.joints_[i].dq_)
             request = jntView.getRequest()
             if request is not None:
                 self.__taskManagerService.pushRequest(request)
 
+        # all joints
+        if not self.__allJointsRequest.empty():
+            req = self.__allJointsRequest.get()
+            self.__taskManagerService.pushRequest(req)
+
+        # tcp view
         self.tcpViews.updateActValues(self.state_.tcpPose())
 
         self.window.after(1000, self.update)
@@ -120,6 +136,10 @@ class Debugger:
     def __onbtn_copyJnt(self):
         for jntView in self.jntViews:
             jntView.copyq2cq()
+
+    def __onbtn_moveJntAll(self):
+        targets : list[tuple[int, float]] = [(jnt.jno, jnt.cq) for jnt in self.jntViews]
+        self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
     
     def start(self):
         self.running = True
@@ -150,6 +170,9 @@ class Debugger:
         
         self.btn_jntcpy      = tk.Button(self.jntFrame, text="copy", command=self.__onbtn_copyJnt)
         self.btn_jntcpy.grid(column=1, row=5)
+        self.btn_moveJntAll      = tk.Button(self.jntFrame, text="moveJntAll", command=self.__onbtn_moveJntAll)
+        self.btn_moveJntAll.grid(column=2, row=5)
+
 #        label_q = tk.Label(self.jntFrame, text='q[deg]')
 #        label_dq = tk.Label(self.jntFrame, text='dq[deg/s]')
 #        label_cq = tk.Label(self.jntFrame, text='cq[deg]')
