@@ -6,8 +6,16 @@ import simState as ss
 from task import taskRequest as tr
 from task import taskManagerService as tms
 
+def updateEntryValueFloat(entry : tk.Entry,
+                     val : float) -> None:
+    orgState = entry.cget("state")
+    entry.configure(state='normal')
+    entry.delete(0, tk.END)
+    entry.insert(tk.END, "{:.2f}".format(val))
+    entry.configure(state=orgState)
+
 class JointView:
-    def __init__(self, frame, name, rowNum, state, index):
+    def __init__(self, frame, name, colNum, state, index):
         ENTRY_WIDTH = 7
         self.label          = tk.Label(frame, text=name)
         self.entry_q        = tk.Entry(frame, state='readonly', width=ENTRY_WIDTH)
@@ -19,11 +27,11 @@ class JointView:
         self.__jno          = index + 1 # to be refactored 
         self.__requests     = queue.Queue()
         # placement
-        self.label.grid(column= 0, row=rowNum)
-        self.entry_q.grid(column=1, row=rowNum)
-        self.entry_dq.grid(column=2, row=rowNum)
-        self.entry_cq.grid(column=3, row=rowNum)
-        self.btn_apply.grid(column=4, row=rowNum)
+        self.label.grid(column=colNum, row=0)
+        self.entry_q.grid(column=colNum, row=1)
+        self.entry_dq.grid(column=colNum, row=2)
+        self.entry_cq.grid(column=colNum, row=3)
+        self.btn_apply.grid(column=colNum, row=4)
 
     def __getEntryValue(self, entry) -> float:
         s = entry.get()
@@ -38,16 +46,15 @@ class JointView:
         targets.append((self.__jno, cq))
         self.__requests.put(tr.MultiJointMoveRequest(targets))
     
-    def updateActValues(self, q, dq):
-        self.entry_q.configure(state='normal')
-        self.entry_q.delete(0, tk.END)
-        self.entry_q.insert(tk.END, "{:.2f}".format(q))
-        self.entry_q.configure(state='readonly')
-
-        self.entry_dq.configure(state='normal')
-        self.entry_dq.delete(0, tk.END)
-        self.entry_dq.insert(tk.END, "{:.2f}".format(dq))
-        self.entry_dq.configure(state='readonly')
+    def updateActValues(self, 
+                        q : float,
+                        dq : float) -> None:
+        updateEntryValueFloat(self.entry_q, q)
+        updateEntryValueFloat(self.entry_dq, dq)
+    
+    def copyq2cq(self):
+        q = self.__getEntryValue(self.entry_q)
+        updateEntryValueFloat(self.entry_cq, q)
     
     def getRequests(self):
         requests = []
@@ -110,6 +117,10 @@ class Debugger:
     def __onbtn_showDataLog(self):
         self.state_.showDataLog()        
     
+    def __onbtn_copyJnt(self):
+        for jntView in self.jntViews:
+            jntView.copyq2cq()
+    
     def start(self):
         self.running = True
         self.window = tk.Tk()
@@ -126,13 +137,25 @@ class Debugger:
         self.datalogFrame.grid(column=1, row=1)
 
         # Joint Widgets
-        titleRow = 0
-        label_q = tk.Label(self.jntFrame, text='q[deg]')
-        label_dq = tk.Label(self.jntFrame, text='dq[deg/s]')
-        label_cq = tk.Label(self.jntFrame, text='cq[deg]')
-        label_q.grid(column=1, row=titleRow)
-        label_dq.grid(column=2, row=titleRow)
-        label_cq.grid(column=3, row=titleRow)
+        JOINT_NUM = 7
+        LABEL_WIDTH = 7
+        jntLabels = [tk.Label(self.jntFrame, text='J'+str(i+1), width=LABEL_WIDTH) for i in range(JOINT_NUM)]
+        TITLE_ROW = 0
+        for i,label in enumerate(jntLabels):
+            label.grid(column=i+1, row=TITLE_ROW)
+
+        self.jntViews = [JointView(self.jntFrame, 'J'+str(i+1), i+1, self.state_, i) for i in range(self.state_.qsize_)]
+        for jntView in self.jntViews:
+            jntView.updateActValues(0, 0)
+        
+        self.btn_jntcpy      = tk.Button(self.jntFrame, text="copy", command=self.__onbtn_copyJnt)
+        self.btn_jntcpy.grid(column=1, row=5)
+#        label_q = tk.Label(self.jntFrame, text='q[deg]')
+#        label_dq = tk.Label(self.jntFrame, text='dq[deg/s]')
+#        label_cq = tk.Label(self.jntFrame, text='cq[deg]')
+#        label_q.grid(column=1, row=titleRow)
+#        label_dq.grid(column=2, row=titleRow)
+#        label_cq.grid(column=3, row=titleRow)
 
         # tcp Widgets
         titleRow = 0
@@ -159,9 +182,6 @@ class Debugger:
         self.btn_endDataLog.grid(column=2, row=rowNum)
         self.btn_showDataLog.grid(column=3, row=rowNum)
 
-        self.jntViews = [JointView(self.jntFrame, 'J'+str(i+1), i+1, self.state_, i) for i in range(self.state_.qsize_)]
-        for jntView in self.jntViews:
-            jntView.updateActValues(0, 0)
         
         self.tcpViews = PoseView(self.tcpFrame, 'tcp')
         pose = [0]*6
