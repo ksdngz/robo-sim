@@ -148,9 +148,13 @@ class Debugger:
         self.window.geometry('540x340')
 
         # frame
-        self.jntFrame = tk.Frame(self.window)
-        self.tcpFrame = tk.Frame(self.window)
-        self.datalogFrame = tk.Frame(self.window)
+        self.jntFrame = tk.Frame(self.window, relief=tk.GROOVE, bd=2)
+        self.jntFrame.propagate(False)
+        self.tcpFrame = tk.Frame(self.window, relief=tk.GROOVE, bd=2)
+        self.tcpFrame.propagate(False)
+        self.datalogFrame = tk.Frame(self.window, relief=tk.GROOVE, bd=2)
+        self.datalogFrame.propagate(False)
+
         # frame layout
         self.jntFrame.grid(column=1, row=0)
         self.tcpFrame.grid(column=1, row=2)
