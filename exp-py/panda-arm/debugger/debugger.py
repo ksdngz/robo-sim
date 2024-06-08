@@ -151,8 +151,8 @@ class Debugger:
         self.tcpCmdView.updateValues(tcp)
 
     def __onbtn_moveTcp(self):
-        targets : list[tuple[int, float]] = [(jnt.jno, jnt.cq) for jnt in self.jntViews]
-        self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
+        tcp = self.tcpCmdView.getPose()
+        self.__allJointsRequest.put(tr.MultiJointMoveTcpRequest(tcp))
 
     def start(self):
         self.running = True

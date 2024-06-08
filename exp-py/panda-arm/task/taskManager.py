@@ -2,6 +2,7 @@ import numpy as np
 from task import taskManagerService as tms
 from motioncon import motionControllerService as mcs
 import simState as ss
+from external import rtbWrapper as rtb
 
 #import dataLogger as dl
 
@@ -47,6 +48,26 @@ class TaskManager:
     def getService(self):
         return self.__service
 
+    def __pushMultiJointMoveRequest(self, targets : list[tuple[int, float]]):
+        qnos : list[int] = []
+        s : list[float] = []
+        t : list[float] = []
+        for target in targets:
+            qno : int = target[0]
+            targetPos : float = target[1]
+            index = qno - 1
+            startPos : float = self.__simState.qs()[index] # [deg]
+            qnos.append(qno)
+            s.append(startPos)
+            t.append(targetPos)
+
+        T = 1000 # points num                
+        traj = MultiSignedProfiler.generateTraj(np.array(s), np.array(t), T)
+        motion = mcs.mr.mo.Motion(qnos, traj)
+        # create motionRequest
+        request : mcs.mr.MotionRequest = mcs.mr.MultiJointMotionRequest(motion)
+        self.__motionControlService.pushRequest(request)
+    
     def tick(self):
         if self.__service.hasRequest():
             req : tms.tr.TaskRequest = self.__service.popRequest()
@@ -88,25 +109,38 @@ class TaskManager:
            
             elif type == tms.tr.TaskRequestType.MULTI_JOINT_MOVE:
                 targets : list[tuple[int, float]] = args.get() # [deg]
-                qnos : list[int] = []
-                s : list[float] = []
-                t : list[float] = []
-                for target in targets:
-                    qno : int = target[0]
-                    targetPos : float = target[1]
-                    index = qno - 1
-                    startPos : float = self.__simState.qs()[index] # [deg]
-                    qnos.append(qno)
-                    s.append(startPos)
-                    t.append(targetPos)
+                self.__pushMultiJointMoveRequest(targets)
+#                qnos : list[int] = []
+#                s : list[float] = []
+#                t : list[float] = []
+#                for target in targets:
+#                    qno : int = target[0]
+#                    targetPos : float = target[1]
+#                    index = qno - 1
+#                    startPos : float = self.__simState.qs()[index] # [deg]
+#                    qnos.append(qno)
+#                    s.append(startPos)
+#                    t.append(targetPos)
+#
+#                T = 1000 # points num                
+#                traj = MultiSignedProfiler.generateTraj(np.array(s), np.array(t), T)
+#                motion = mcs.mr.mo.Motion(qnos, traj)
+#                # create motionRequest
+#                request : mcs.mr.MotionRequest = mcs.mr.MultiJointMotionRequest(motion)
+#                self.__motionControlService.pushRequest(request)
 
-                T = 1000 # points num                
-                traj = MultiSignedProfiler.generateTraj(np.array(s), np.array(t), T)
-                motion = mcs.mr.mo.Motion(qnos, traj)
-                # create motionRequest
-                request : mcs.mr.MotionRequest = mcs.mr.MultiJointMotionRequest(motion)
-                self.__motionControlService.pushRequest(request)
-                    
+            elif type == tms.tr.TaskRequestType.MULTI_JOINT_MOVE_TCP:
+                # tcpTarget : list[float] = args.get() # [deg]
+                tcpTarget : np.ndarray = np.array(args.get())# [deg]
+                q0 : np.ndarray = np.array(self.__simState.qs()) # [deg]
+                q : np.ndarray = rtb.inverseKin(tcpTarget, q0)
+                jntTarget : list[float] = q
+                jnos = list(range(1,8)) # todo
+                targets : list[tuple[int, float]] = []
+                for i,jno in enumerate(jnos):
+                    targets.append((jno, jntTarget[i]))
+                self.__pushMultiJointMoveRequest(targets)
+                
             else:
                 print('Error: Not defined taskRequest was pushed.')
                 assert()

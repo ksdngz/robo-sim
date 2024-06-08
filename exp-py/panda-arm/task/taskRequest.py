@@ -2,9 +2,10 @@ import queue
 from enum import Enum
 
 class TaskRequestType(Enum):
-    NONE                = 0
-    SINGLE_JOINT_MOVE   = 1
-    MULTI_JOINT_MOVE    = 2
+    NONE                    = 0
+    SINGLE_JOINT_MOVE       = 1
+    MULTI_JOINT_MOVE        = 2
+    MULTI_JOINT_MOVE_TCP    = 3
 
 class TaskRequest:
     def __init__(self, requstType: TaskRequestType):
@@ -27,3 +28,8 @@ class MultiJointMoveRequest(TaskRequest):
     def __init__(self, targets : list[tuple[int, float]]): # targets: list[(qno, targetPos)]
         super().__init__(TaskRequestType.MULTI_JOINT_MOVE)
         self.getArgs().put(targets)
+
+class MultiJointMoveTcpRequest(TaskRequest):
+    def __init__(self, tcp : list[float]):
+        super().__init__(TaskRequestType.MULTI_JOINT_MOVE_TCP)
+        self.getArgs().put(tcp)

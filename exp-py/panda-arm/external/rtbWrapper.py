@@ -17,6 +17,13 @@ def calcGravComp(q):
     g = robot.gravload(q)
     return g
 
+def inverseKin(
+    tep : np.ndarray,
+    q0 : np.ndarray) -> np.ndarray:
+    robot = rtb.models.DH.Panda()
+    ret = robot.ik_lm_sugihara(tep, q0) # tuple (q, success, iterations, searches, residual)
+    return ret.q
+
 # sample inverse dynamics
 #puma = rtb.models.DH.Puma560()
 #tau = puma.rne(puma.qn, np.zeros((6,)), np.zeros((6,)))
