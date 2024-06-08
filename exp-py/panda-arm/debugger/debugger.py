@@ -15,9 +15,9 @@ def updateEntryValueFloat(entry : tk.Entry,
     entry.configure(state=orgState)
 
 class JointView:
-    def __init__(self, frame, name, colNum, state, index):
+    def __init__(self, frame, name, rowNum, state, index):
         ENTRY_WIDTH = 7
-        self.label          = tk.Label(frame, text=name)
+        self.label          = tk.Label(frame, text=name, width=ENTRY_WIDTH)
         self.entry_q        = tk.Entry(frame, state='readonly', width=ENTRY_WIDTH)
         self.entry_dq       = tk.Entry(frame, state='readonly', width=ENTRY_WIDTH)
         self.entry_cq       = tk.Entry(frame, width=ENTRY_WIDTH)
@@ -27,11 +27,11 @@ class JointView:
         self.__jno          = index + 1 # to be refactored 
         self.__requests     = queue.Queue()
         # placement
-        self.label.grid(column=colNum, row=0)
-        self.entry_q.grid(column=colNum, row=1)
-        self.entry_dq.grid(column=colNum, row=2)
-        self.entry_cq.grid(column=colNum, row=3)
-        self.btn_apply.grid(column=colNum, row=4)
+        self.label.grid(column=0, row=rowNum)
+        self.entry_q.grid(column=1, row=rowNum)
+        self.entry_dq.grid(column=2, row=rowNum)
+        self.entry_cq.grid(column=3, row=rowNum)
+        self.btn_apply.grid(column=4, row=rowNum)
 
     @property
     def cq(self) -> float:
@@ -156,16 +156,16 @@ class Debugger:
         self.datalogFrame.propagate(False)
 
         # frame layout
-        self.jntFrame.grid(column=1, row=0)
+        self.jntFrame.grid(column=1, row=1)
         self.tcpFrame.grid(column=1, row=2)
-        self.datalogFrame.grid(column=1, row=1)
+        self.datalogFrame.grid(column=2, row=1)
 
         # Joint Widgets
-        JOINT_NUM = 7
+        #JOINT_NUM = 7
         LABEL_WIDTH = 7
-        jntLabels = [tk.Label(self.jntFrame, text='J'+str(i+1), width=LABEL_WIDTH) for i in range(JOINT_NUM)]
+        jntValueLabels = [tk.Label(self.jntFrame, text=name, width=LABEL_WIDTH) for name in ['q[deg]','qd[deg]','cq[deg]']]
         TITLE_ROW = 0
-        for i,label in enumerate(jntLabels):
+        for i,label in enumerate(jntValueLabels):
             label.grid(column=i+1, row=TITLE_ROW)
 
         self.jntViews = [JointView(self.jntFrame, 'J'+str(i+1), i+1, self.state_, i) for i in range(self.state_.qsize_)]
@@ -173,9 +173,9 @@ class Debugger:
             jntView.updateActValues(0, 0)
         
         self.btn_jntcpy      = tk.Button(self.jntFrame, text="copy", command=self.__onbtn_copyJnt)
-        self.btn_jntcpy.grid(column=1, row=5)
+        self.btn_jntcpy.grid(column=1, row=8)
         self.btn_moveJntAll      = tk.Button(self.jntFrame, text="moveJntAll", command=self.__onbtn_moveJntAll)
-        self.btn_moveJntAll.grid(column=2, row=5)
+        self.btn_moveJntAll.grid(column=2, row=8)
 
 #        label_q = tk.Label(self.jntFrame, text='q[deg]')
 #        label_dq = tk.Label(self.jntFrame, text='dq[deg/s]')
@@ -185,19 +185,23 @@ class Debugger:
 #        label_cq.grid(column=3, row=titleRow)
 
         # tcp Widgets
+        #tcpValues = ['x[m]', 'y[m]', 'z[m]', 'r[deg]', 'p[deg]', 'y[deg]']
+        tcpValueLabel = [tk.Label(self.tcpFrame, text=name) for name in ['x[m]', 'y[m]', 'z[m]', 'r[deg]', 'p[deg]', 'y[deg]']]
         titleRow = 0
-        label_x = tk.Label(self.tcpFrame, text='x[m]')
-        label_y = tk.Label(self.tcpFrame, text='y[m]')
-        label_z = tk.Label(self.tcpFrame, text='z[m]')
-        label_r = tk.Label(self.tcpFrame, text='r[deg]')
-        label_p = tk.Label(self.tcpFrame, text='p[deg]')
-        label_y = tk.Label(self.tcpFrame, text='y[deg]')
-        label_x.grid(column=1, row=titleRow)
-        label_y.grid(column=2, row=titleRow)
-        label_z.grid(column=3, row=titleRow)
-        label_r.grid(column=4, row=titleRow)
-        label_p.grid(column=5, row=titleRow)
-        label_y.grid(column=6, row=titleRow)
+        for i,label in enumerate(tcpValueLabel):
+            label.grid(column=i+1, row=titleRow)
+#        label_x = tk.Label(self.tcpFrame, text='x[m]')
+#        label_y = tk.Label(self.tcpFrame, text='y[m]')
+#        label_z = tk.Label(self.tcpFrame, text='z[m]')
+#        label_r = tk.Label(self.tcpFrame, text='r[deg]')
+#        label_p = tk.Label(self.tcpFrame, text='p[deg]')
+#        label_y = tk.Label(self.tcpFrame, text='y[deg]')
+#        label_x.grid(column=1, row=titleRow)
+#        label_y.grid(column=2, row=titleRow)
+#        label_z.grid(column=3, row=titleRow)
+#        label_r.grid(column=4, row=titleRow)
+#        label_p.grid(column=5, row=titleRow)
+#        label_y.grid(column=6, row=titleRow)
 
         # Datalog Widgets
         self.btn_startDataLog = tk.Button(self.datalogFrame, text="start", command=self.__onbtn_startDataLog)
