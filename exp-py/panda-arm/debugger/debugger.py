@@ -14,6 +14,12 @@ def updateEntryValueFloat(entry : tk.Entry,
     entry.insert(tk.END, "{:.2f}".format(val))
     entry.configure(state=orgState)
 
+def getEntryValue(entry : tk.Entry) -> float:
+    s = entry.get()
+    if not com.isNum(s):
+        return 0. # todo to returns error in case of not number
+    return float(s)
+
 class JointView:
     def __init__(self, frame, name, rowNum, state, index):
         ENTRY_WIDTH = 7
@@ -35,20 +41,14 @@ class JointView:
 
     @property
     def cq(self) -> float:
-        return self.__getEntryValue(self.entry_cq)
+        return getEntryValue(self.entry_cq)
 
     @property
     def jno(self) -> int:
         return self.__jno
-        
-    def __getEntryValue(self, entry) -> float:
-        s = entry.get()
-        if not com.isNum(s):
-            return 0. # todo to returns error in case of not number
-        return float(s)
 
     def __onbtn_apply(self):
-        cq = self.__getEntryValue(self.entry_cq) # [deg]
+        cq = getEntryValue(self.entry_cq) # [deg]
         self.__state.joints_[self.__index].qtarget_ = cq # todo to update index of qtarget_
         targets : list[tuple[int, float]] = []
         targets.append((self.__jno, cq))
@@ -61,7 +61,7 @@ class JointView:
         updateEntryValueFloat(self.entry_dq, dq)
     
     def copyq2cq(self):
-        q = self.__getEntryValue(self.entry_q)
+        q = getEntryValue(self.entry_q)
         updateEntryValueFloat(self.entry_cq, q)
     
     def getRequests(self):
@@ -76,32 +76,37 @@ class JointView:
         return None
 
 class PoseView:
-    def __init__(self, frame, name):
+    def __init__(self, 
+                 frame, 
+                 name : str,
+                 rowNum : int,
+                 optState : str ='normal'): # 'normal' 'readonly'
         ENTRY_WIDTH = 7
         CARTESIAN_POSE_SIZE = 6
-        ROW_NUM = 1
         self.label          = tk.Label(frame, text=name)
-        self.entries        = [tk.Entry(frame, state='readonly', width=ENTRY_WIDTH) for i in range(CARTESIAN_POSE_SIZE) ]
+        self.entries        = [tk.Entry(frame, state=optState, width=ENTRY_WIDTH) for i in range(CARTESIAN_POSE_SIZE) ]
         # self.btn_apply      = tk.Button(frame, text="apply", command=self.__onbtn_apply)
         #self.__state        = state
         #self.__index        = index
         #self.__jno          = index + 1 # to be refactored 
         #self.__requests     = queue.Queue()
         # placement
-        self.label.grid(column= 0, row=ROW_NUM)
+        self.label.grid(column= 0, row=rowNum)
         for i, entry in enumerate(self.entries):
-            entry.grid(column=i+1, row=ROW_NUM)
+            entry.grid(column=i+1, row=rowNum)
 
-    def updateActValues(self, 
-                        pose: list[float]) -> None:
+    def updateValues(self, 
+                     pose: list[float]) -> None:
         for i,entry in enumerate(self.entries):
-            entry.configure(state='normal')
-            entry.delete(0, tk.END)
-            entry.insert(tk.END, "{:.2f}".format(pose[i]))
-            entry.configure(state='readonly')
+            updateEntryValueFloat(entry, pose[i])
+
+    def getPose(self) -> list[float]:
+        return [getEntryValue(entry) for entry in self.entries]
 
 class Debugger:
-    def __init__(self, state: ss.SimState, taskManagerService : tms.TaskManagerService):
+    def __init__(self, 
+                 state: ss.SimState, 
+                 taskManagerService : tms.TaskManagerService):
         self.state_ = state
         self.__taskManagerService = taskManagerService
         self.__allJointsRequest = queue.Queue()
@@ -120,7 +125,7 @@ class Debugger:
             self.__taskManagerService.pushRequest(req)
 
         # tcp view
-        self.tcpViews.updateActValues(self.state_.tcpPose())
+        self.tcpView.updateValues(self.state_.tcpPose())
 
         self.window.after(1000, self.update)
 
@@ -140,7 +145,15 @@ class Debugger:
     def __onbtn_moveJntAll(self):
         targets : list[tuple[int, float]] = [(jnt.jno, jnt.cq) for jnt in self.jntViews]
         self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
-    
+
+    def __onbtn_copyTcp(self):
+        tcp = self.tcpView.getPose()
+        self.tcpCmdView.updateValues(tcp)
+
+    def __onbtn_moveTcp(self):
+        targets : list[tuple[int, float]] = [(jnt.jno, jnt.cq) for jnt in self.jntViews]
+        self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
+
     def start(self):
         self.running = True
         self.window = tk.Tk()
@@ -213,11 +226,20 @@ class Debugger:
         self.btn_endDataLog.grid(column=2, row=rowNum)
         self.btn_showDataLog.grid(column=3, row=rowNum)
 
-        
-        self.tcpViews = PoseView(self.tcpFrame, 'tcp')
+        rowNum : int = 1
+        self.tcpView = PoseView(self.tcpFrame, 'tcp', rowNum, 'readonly')
         pose = [0]*6
-        self.tcpViews.updateActValues(pose)
+        self.tcpView.updateValues(pose)
+
+        rowNum = rowNum + 1
+        self.tcpCmdView = PoseView(self.tcpFrame, 'tcpcmd', rowNum)
         
+        rowNum = rowNum + 1
+        self.btn_tcpcpy      = tk.Button(self.tcpFrame, text="copy", command=self.__onbtn_copyTcp)
+        self.btn_tcpcpy.grid(column=1, row=rowNum)
+        self.btn_movetcp      = tk.Button(self.tcpFrame, text="moveJntAll", command=self.__onbtn_moveTcp)
+        self.btn_movetcp.grid(column=2, row=rowNum)
+
         
         # Widget
         self.update()

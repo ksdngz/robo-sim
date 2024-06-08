@@ -255,6 +255,7 @@ cam.lookat =np.array([ 0.0 , 0.0 , 0.0 ])
 #initialize the controller
 ## temporary disabled
 #init_controller(model,data)
+#i = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "marker1")
 
 # state.qtarget_ = initq
 data.qpos = initq
@@ -272,8 +273,8 @@ while not glfw.window_should_close(window):
         motionCon.tick()
         lowLevelCon.tick(model, data)
                 
-    if (data.time>=simend):
-        break
+#    if (data.time>=simend):
+#        break
 
     # get framebuffer viewport
     viewport_width, viewport_height = glfw.get_framebuffer_size(
@@ -281,9 +282,9 @@ while not glfw.window_should_close(window):
     viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
 
     #print camera configuration (help to initialize the view)
-    if (print_camera_config==1):
-        print('cam.azimuth =',cam.azimuth,';','cam.elevation =',cam.elevation,';','cam.distance = ',cam.distance)
-        print('cam.lookat =np.array([',cam.lookat[0],',',cam.lookat[1],',',cam.lookat[2],'])')
+    #if (print_camera_config==1):
+    #    print('cam.azimuth =',cam.azimuth,';','cam.elevation =',cam.elevation,';','cam.distance = ',cam.distance)
+    #    print('cam.lookat =np.array([',cam.lookat[0],',',cam.lookat[1],',',cam.lookat[2],'])')    
 
     # Update scene and render
     mj.mjv_updateScene(model, data, opt, None, cam,

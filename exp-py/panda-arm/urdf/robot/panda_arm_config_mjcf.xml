@@ -8,4 +8,7 @@
     <motor name="motor6" joint="panda_joint6" gear="1"/>
     <motor name="motor7" joint="panda_joint7" gear="1"/>
   </actuator>
+  <worldbody>
+    <geom name="marker1" pos=".2 .2 .2" size=".1" rgba="0 1 0 1"/>
+  </worldbody>
 </mujoco>
