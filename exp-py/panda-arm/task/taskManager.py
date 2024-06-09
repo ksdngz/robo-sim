@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.spatial.transform import Rotation
+from spatialmath import SE3
 from task import taskManagerService as tms
 from motioncon import motionControllerService as mcs
 import simState as ss
@@ -132,9 +134,37 @@ class TaskManager:
             elif type == tms.tr.TaskRequestType.MULTI_JOINT_MOVE_TCP:
                 # tcpTarget : list[float] = args.get() # [deg]
                 tcpTarget : np.ndarray = np.array(args.get())# [deg]
-                q0 : np.ndarray = np.array(self.__simState.qs()) # [deg]
-                q : np.ndarray = rtb.inverseKin(tcpTarget, q0)
-                jntTarget : list[float] = q
+                x = tcpTarget[0]
+                y = tcpTarget[1]
+                z = tcpTarget[2]
+                ro = np.deg2rad(tcpTarget[3])
+                pi = np.deg2rad(tcpTarget[4])
+                ya = np.deg2rad(tcpTarget[5])
+                #quat = np.array(data.xquat[index_tcp])
+                rot = SE3.RPY(ro,pi,ya)
+
+#                rottmp1 = SE3.RPY(ro,pi,ya, order="zyx")
+#                rottmp2 = SE3.RPY(ro,pi,ya, order="xyz")
+                #rottmp3 = SE3.RPY(ro,pi,ya, order="zyz")
+#                print("rottmp1")
+#                print(rottmp1)
+#                print("rottmp2")
+#                print(rottmp2)
+                #print("rottmp3")
+                #print(rottmp3)
+                
+                
+                trans = SE3.Trans(x,y,z)
+                target = trans * rot
+                #print(rot)
+                #print(trans)
+                print(target)
+                #rot = Rotation.from_euler('ZYX', tcpTarget[3:5], degrees=True)
+                # angle = rot.as_euler('ZYX', degrees=True)
+
+                q0 : np.ndarray = np.array(np.deg2rad(self.__simState.qs())) # [rad]
+                q : np.ndarray = rtb.inverseKin(target, q0) # [rad]
+                jntTarget : list[float] = np.rad2deg(q) #[deg]
                 jnos = list(range(1,8)) # todo
                 targets : list[tuple[int, float]] = []
                 for i,jno in enumerate(jnos):

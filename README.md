@@ -205,6 +205,9 @@ pip install control
       > pip install "scipy<1.12.0"
     * Githubの[issue](https://github.com/petercorke/RVC3-python/issues/16)あり。
 
+* 回転角の設定がバグっている。yawを180[deg]反転するとそれっぽい動作に。
+  * ![alt text](image-1.png)
+  * IKの参照関節角を設定するとうねりが低減できないか確認する
 
 ## Panda armの導入
 * urdfの入手

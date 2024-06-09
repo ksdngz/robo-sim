@@ -18,11 +18,19 @@ def calcGravComp(q):
     return g
 
 def inverseKin(
-    tep : np.ndarray,
-    q0 : np.ndarray) -> np.ndarray:
+    tep : np.ndarray, #[rad]
+    q0_ : np.ndarray) -> np.ndarray: #[rad] -> [rad]
     robot = rtb.models.DH.Panda()
-    ret = robot.ik_lm_sugihara(tep, q0) # tuple (q, success, iterations, searches, residual)
-    return ret.q
+    print(robot.fkine(q0_))
+#    print(robot)
+#    robot.ikine_LM(tep)
+    ret = robot.ik_LM(tep) # tuple (q, success, iterations, searches, residual)
+#    ret = robot.ik_LM(tep, q0=q0_) # tuple (q, success, iterations, searches, residual)
+    q : np.ndarray = ret[0]
+    success : bool = ret[1]
+    if success == 0:
+        print('rtb ik solution was found but in error.')
+    return q
 
 # sample inverse dynamics
 #puma = rtb.models.DH.Puma560()

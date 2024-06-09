@@ -86,6 +86,13 @@ class SimState:
         quat = np.array(data.xquat[index_tcp])
         rot = Rotation.from_quat(quat)
         angle = rot.as_euler('ZYX', degrees=True)
+
+#        angle2 = rot.as_euler('XYZ', degrees=True)
+#        print('angle')
+#        print(angle)
+#        print('angle2')
+#        print(angle2)
+        
         
         self.__tcp.update(data.xpos[index_tcp], angle)
         
