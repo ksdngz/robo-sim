@@ -24,7 +24,7 @@ def inverseKin(
     print(robot.fkine(q0_))
 #    print(robot)
 #    robot.ikine_LM(tep)
-    ret = robot.ik_LM(tep) # tuple (q, success, iterations, searches, residual)
+    ret = robot.ik_LM(tep, q0=q0_) # tuple (q, success, iterations, searches, residual)
 #    ret = robot.ik_LM(tep, q0=q0_) # tuple (q, success, iterations, searches, residual)
     q : np.ndarray = ret[0]
     success : bool = ret[1]

@@ -233,7 +233,7 @@ glfw.swap_interval(1)
 mj.mjv_defaultCamera(cam)
 mj.mjv_defaultOption(opt)
 #opt.flags[mj.mjtVisFlag.mjVIS_JOINT] = True
-#opt.frame = mj.mjtFrame.mjFRAME_GEOM
+opt.frame = mj.mjtFrame.mjFRAME_GEOM
 
 scene = mj.MjvScene(model, maxgeom=10000)
 context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150.value)

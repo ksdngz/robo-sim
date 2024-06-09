@@ -207,7 +207,10 @@ pip install control
 
 * 回転角の設定がバグっている。yawを180[deg]反転するとそれっぽい動作に。
   * ![alt text](image-1.png)
-  * IKの参照関節角を設定するとうねりが低減できないか確認する
+  * 下記の設定が正のようである
+    * ![alt text](image-2.png)
+    * ![alt text](image-3.png)
+  * pitchの追従性が悪い
 
 ## Panda armの導入
 * urdfの入手
