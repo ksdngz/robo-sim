@@ -1,12 +1,3 @@
-#import mujoco as mj
-#from mujoco.glfw import glfw
-#import matplotlib.pyplot as plt
-#import numpy as np
-#import os
-#import queue
-#import control
-#import threading
-
 # commmon method
 # 
 # check if the string s is a number or not.

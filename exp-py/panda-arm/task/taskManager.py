@@ -1,12 +1,10 @@
 import numpy as np
-from scipy.spatial.transform import Rotation
+#from scipy.spatial.transform import Rotation
 from spatialmath import SE3
 from task import taskManagerService as tms
 from motioncon import motionControllerService as mcs
 import simState as ss
 from external import rtbWrapper as rtb
-
-#import dataLogger as dl
 
 class SingleSignedProfiler:
     @classmethod
@@ -85,26 +83,6 @@ class TaskManager:
                 T = 1000 # points num                
                 traj = SingleSignedProfiler.generateTraj(startPos, targetPos, T)
                 motion = mcs.mr.mo.Motion(traj)
-
-                # generate Traj
-                #traj = mcs.mr.mo.Trajectory()
-                ## temporal trajectory generation ##
-                # for debugging
-                #plistDbg =[]
-                #tlistDbg =[]
-
-#                for i in range(T):
-#                    rate : float = float(i/T)
-#                    p = startPos + (targetPos-startPos)*(1 - np.cos(np.pi*rate))/2 # [deg]
-#                    # for debugging
-#                    #tlistDbg.append(i)
-#                    #plistDbg.append(p)                    
-#                    point = mcs.mr.mo.Point(i, np.deg2rad(p)) # [t, p[rad]]
-#                    traj.push(point)               
-#                motion = mcs.mr.mo.Motion(traj)
-                # for debugging
-                #dl.Graph.quickShow(tlistDbg, plistDbg)
-
                 # create motionRequest
                 request : mcs.mr.MotionRequest = mcs.mr.SingleJointMotionRequest(qno, motion)
                 self.__motionControlService.pushRequest(request)
@@ -112,24 +90,6 @@ class TaskManager:
             elif type == tms.tr.TaskRequestType.MULTI_JOINT_MOVE:
                 targets : list[tuple[int, float]] = args.get() # [deg]
                 self.__pushMultiJointMoveRequest(targets)
-#                qnos : list[int] = []
-#                s : list[float] = []
-#                t : list[float] = []
-#                for target in targets:
-#                    qno : int = target[0]
-#                    targetPos : float = target[1]
-#                    index = qno - 1
-#                    startPos : float = self.__simState.qs()[index] # [deg]
-#                    qnos.append(qno)
-#                    s.append(startPos)
-#                    t.append(targetPos)
-#
-#                T = 1000 # points num                
-#                traj = MultiSignedProfiler.generateTraj(np.array(s), np.array(t), T)
-#                motion = mcs.mr.mo.Motion(qnos, traj)
-#                # create motionRequest
-#                request : mcs.mr.MotionRequest = mcs.mr.MultiJointMotionRequest(motion)
-#                self.__motionControlService.pushRequest(request)
 
             elif type == tms.tr.TaskRequestType.MULTI_JOINT_MOVE_TCP:
                 # tcpTarget : list[float] = args.get() # [deg]
@@ -140,28 +100,9 @@ class TaskManager:
                 ro = np.deg2rad(tcpTarget[3])
                 pi = np.deg2rad(tcpTarget[4])
                 ya = np.deg2rad(tcpTarget[5])
-                #quat = np.array(data.xquat[index_tcp])
-                rot = SE3.RPY(ro,pi,ya)
-
-#                rottmp1 = SE3.RPY(ro,pi,ya, order="zyx")
-#                rottmp2 = SE3.RPY(ro,pi,ya, order="xyz")
-                #rottmp3 = SE3.RPY(ro,pi,ya, order="zyz")
-#                print("rottmp1")
-#                print(rottmp1)
-#                print("rottmp2")
-#                print(rottmp2)
-                #print("rottmp3")
-                #print(rottmp3)
-                
-                
+                rot = SE3.RPY(ro,pi,ya)                
                 trans = SE3.Trans(x,y,z)
                 target = trans * rot
-                #print(rot)
-                #print(trans)
-                print(target)
-                #rot = Rotation.from_euler('ZYX', tcpTarget[3:5], degrees=True)
-                # angle = rot.as_euler('ZYX', degrees=True)
-
                 q0 : np.ndarray = np.array(np.deg2rad(self.__simState.qs())) # [rad]
                 q : np.ndarray = rtb.inverseKin(target, q0) # [rad]
                 jntTarget : list[float] = np.rad2deg(q) #[deg]

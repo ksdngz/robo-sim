@@ -1,17 +1,5 @@
-#import mujoco as mj
-#from mujoco.glfw import glfw
-#import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial.transform import Rotation
-#import os
-#import queue
-#import control
-#import threading
-#import tkinter as tk
-#import tkinter.ttk as ttk
-#import rtbWrapper as rtb
-#from task import taskRequest as taskReq
-
 import debugger.dataLogger as dl
 
 class JointState:
@@ -75,31 +63,15 @@ class SimState:
         self.__time = self.__time+1
         for i, jnt in enumerate(self.joints_):
             jnt.update(data.qpos[i], data.qvel[i], qcmd[i], dqcmd[i])
-        
         #index_tcp = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, 'panda_link7')
         index_tcp = 7 # todo to be refactored
-        # print('panda_link7 pose', data.xpos[i], data.xquat[i])
         # to do change from quat to rpy
-        rpy = [0]*3
-        #data.xquat[index_tcp]
-        
+        rpy = [0]*3        
         quat = np.array(data.xquat[index_tcp])
         rot = Rotation.from_quat(quat)
-        angle = rot.as_euler('ZYX', degrees=True)
-
-#        angle2 = rot.as_euler('XYZ', degrees=True)
-#        print('angle')
-#        print(angle)
-#        print('angle2')
-#        print(angle2)
-        
-        
-        self.__tcp.update(data.xpos[index_tcp], angle)
-        
+        angle = rot.as_euler('ZYX', degrees=True)        
+        self.__tcp.update(data.xpos[index_tcp], angle)        
         self.dataLogger.log(self.time(), self.qs(), self.qdots(), self.qcmds(), self.qdotcmds())        
-        #            self.__data.timeBuf.add(state.time())    
-        #            self.__data.qBuf.add(state.qs())    
-        #            self.__data.qdotBuf.add(state.qdots())            
 
     def startDataLog(self):
         DEFAULT_SIZE = 100

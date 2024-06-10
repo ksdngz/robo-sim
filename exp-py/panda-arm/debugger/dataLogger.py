@@ -1,17 +1,5 @@
-#import mujoco as mj
-#from mujoco.glfw import glfw
 import matplotlib.pyplot as plt
 import numpy as np
-#import os
-#import queue
-#import control
-#import threading
-#import tkinter as tk
-#import tkinter.ttk as ttk
-#import rtbWrapper as rtb
-#from task import taskRequest as taskReq
-
-import simState as ss
 from common import common as cm
 
 class LogData:
@@ -68,7 +56,6 @@ class Graph:
 ## DataLogger
 class DataLogger:
     def __init__(self):
-#        self.__state = state
         self.__data = LogData()
         self.__enabled = False
         self.__size = 0
@@ -86,12 +73,6 @@ class DataLogger:
         self.__data.qdcmdBuf = cm.RingBuffer(size)
         self.__size = size
         self.__enabled = True
-
-#    def log(self, state : ss.SimState):
-#        if self.__enabled:
-#            self.__data.timeBuf.add(state.time())    
-#            self.__data.qBuf.add(state.qs())    
-#            self.__data.qdotBuf.add(state.qdots())    
 
     def log(self, time, qs, qdots, qcmds, qdcmds):
         if self.__enabled:

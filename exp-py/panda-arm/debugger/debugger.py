@@ -1,6 +1,5 @@
 import queue
 import tkinter as tk
-#import tkinter.ttk as ttk
 from common import common as com
 import simState as ss
 from task import taskRequest as tr
@@ -85,12 +84,6 @@ class PoseView:
         CARTESIAN_POSE_SIZE = 6
         self.label          = tk.Label(frame, text=name)
         self.entries        = [tk.Entry(frame, state=optState, width=ENTRY_WIDTH) for i in range(CARTESIAN_POSE_SIZE) ]
-        # self.btn_apply      = tk.Button(frame, text="apply", command=self.__onbtn_apply)
-        #self.__state        = state
-        #self.__index        = index
-        #self.__jno          = index + 1 # to be refactored 
-        #self.__requests     = queue.Queue()
-        # placement
         self.label.grid(column= 0, row=rowNum)
         for i, entry in enumerate(self.entries):
             entry.grid(column=i+1, row=rowNum)
@@ -190,38 +183,17 @@ class Debugger:
         self.btn_moveJntAll      = tk.Button(self.jntFrame, text="moveJntAll", command=self.__onbtn_moveJntAll)
         self.btn_moveJntAll.grid(column=2, row=8)
 
-#        label_q = tk.Label(self.jntFrame, text='q[deg]')
-#        label_dq = tk.Label(self.jntFrame, text='dq[deg/s]')
-#        label_cq = tk.Label(self.jntFrame, text='cq[deg]')
-#        label_q.grid(column=1, row=titleRow)
-#        label_dq.grid(column=2, row=titleRow)
-#        label_cq.grid(column=3, row=titleRow)
-
         # tcp Widgets
-        #tcpValues = ['x[m]', 'y[m]', 'z[m]', 'r[deg]', 'p[deg]', 'y[deg]']
         tcpValueLabel = [tk.Label(self.tcpFrame, text=name) for name in ['x[m]', 'y[m]', 'z[m]', 'r[deg]', 'p[deg]', 'y[deg]']]
         titleRow = 0
         for i,label in enumerate(tcpValueLabel):
             label.grid(column=i+1, row=titleRow)
-#        label_x = tk.Label(self.tcpFrame, text='x[m]')
-#        label_y = tk.Label(self.tcpFrame, text='y[m]')
-#        label_z = tk.Label(self.tcpFrame, text='z[m]')
-#        label_r = tk.Label(self.tcpFrame, text='r[deg]')
-#        label_p = tk.Label(self.tcpFrame, text='p[deg]')
-#        label_y = tk.Label(self.tcpFrame, text='y[deg]')
-#        label_x.grid(column=1, row=titleRow)
-#        label_y.grid(column=2, row=titleRow)
-#        label_z.grid(column=3, row=titleRow)
-#        label_r.grid(column=4, row=titleRow)
-#        label_p.grid(column=5, row=titleRow)
-#        label_y.grid(column=6, row=titleRow)
 
         # Datalog Widgets
         self.btn_startDataLog = tk.Button(self.datalogFrame, text="start", command=self.__onbtn_startDataLog)
         self.btn_endDataLog = tk.Button(self.datalogFrame, text="end", command=self.__onbtn_endDataLog)
         self.btn_showDataLog = tk.Button(self.datalogFrame, text="show", command=self.__onbtn_showDataLog)
         rowNum = 0
-        #self.label.grid(column= 0, row=rowNum)
         self.btn_startDataLog.grid(column=1, row=rowNum)
         self.btn_endDataLog.grid(column=2, row=rowNum)
         self.btn_showDataLog.grid(column=3, row=rowNum)
@@ -240,7 +212,6 @@ class Debugger:
         self.btn_movetcp      = tk.Button(self.tcpFrame, text="moveJntAll", command=self.__onbtn_moveTcp)
         self.btn_movetcp.grid(column=2, row=rowNum)
 
-        
         # Widget
         self.update()
         self.window.mainloop()
