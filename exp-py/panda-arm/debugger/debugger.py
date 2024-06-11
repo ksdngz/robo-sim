@@ -1,9 +1,13 @@
 import queue
+import numpy as np
 import tkinter as tk
 from common import common as com
+from common import common_constants as const
 import simState as ss
 from task import taskRequest as tr
 from task import taskManagerService as tms
+
+import copy
 
 def updateEntryValueFloat(entry : tk.Entry,
                      val : float) -> None:
@@ -21,8 +25,8 @@ def getEntryValue(entry : tk.Entry) -> float:
 
 class JointView:
     def __init__(self, frame, name, rowNum, state, index):
-        ENTRY_WIDTH = 7
-        self.label          = tk.Label(frame, text=name, width=ENTRY_WIDTH)
+        ENTRY_WIDTH = 8
+        self.label          = tk.Label(frame, text=name)
         self.entry_q        = tk.Entry(frame, state='readonly', width=ENTRY_WIDTH)
         self.entry_dq       = tk.Entry(frame, state='readonly', width=ENTRY_WIDTH)
         self.entry_cq       = tk.Entry(frame, width=ENTRY_WIDTH)
@@ -139,6 +143,16 @@ class Debugger:
         targets : list[tuple[int, float]] = [(jnt.jno, jnt.cq) for jnt in self.jntViews]
         self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
 
+    def __onbtn_moveZero(self):
+        targets : list[tuple[int, float]] = [(i+1, np.rad2deg(j)) for i,j in enumerate(const.Constants.ZERO_JOINTS)]
+        self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
+
+    def __onbtn_moveHome(self):
+        hjoint = copy.copy(const.Constants.HOME_JOINTS)  
+        #hjoint = [0, -np.pi / 4, 0, -3 * np.pi / 4, 0, np.pi / 2, np.pi / 4]  
+        targets : list[tuple[int, float]] = [(i+1, np.rad2deg(j)) for i,j in enumerate(hjoint)]
+        self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
+
     def __onbtn_copyTcp(self):
         tcp = self.tcpView.getPose()
         self.tcpCmdView.updateValues(tcp)
@@ -180,8 +194,12 @@ class Debugger:
         
         self.btn_jntcpy      = tk.Button(self.jntFrame, text="copy", command=self.__onbtn_copyJnt)
         self.btn_jntcpy.grid(column=1, row=8)
-        self.btn_moveJntAll      = tk.Button(self.jntFrame, text="moveJntAll", command=self.__onbtn_moveJntAll)
+        self.btn_moveJntAll      = tk.Button(self.jntFrame, text="movJAll", command=self.__onbtn_moveJntAll)
         self.btn_moveJntAll.grid(column=2, row=8)
+        self.btn_moveZero      = tk.Button(self.jntFrame, text="zero", command=self.__onbtn_moveZero)
+        self.btn_moveZero.grid(column=3, row=8)
+        self.btn_moveHome      = tk.Button(self.jntFrame, text="home", command=self.__onbtn_moveHome)
+        self.btn_moveHome.grid(column=4, row=8)
 
         # tcp Widgets
         tcpValueLabel = [tk.Label(self.tcpFrame, text=name) for name in ['x[m]', 'y[m]', 'z[m]', 'r[deg]', 'p[deg]', 'y[deg]']]

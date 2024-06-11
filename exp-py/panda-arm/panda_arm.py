@@ -8,12 +8,14 @@ import matplotlib.pyplot as plt
 import mujoco as mj
 from mujoco.glfw import glfw
 
-import common as com
+from common import common_constants as const 
 from debugger import debugger as dbg
 from lowlevelcon import lowLevelController as llc
 from motioncon import motionController as mc
 from task import taskManager as tm
 import simState as ss
+
+import copy
 
 # global settings
 np.set_printoptions(precision=2)
@@ -187,8 +189,9 @@ global gCount
 gCount = 0
 initq_deg = [0, 10, 0, -150, 0, 180, 0]
 #initq = [0., 1.3, 0., 0., 0., 0., 0.]
-initq = [np.deg2rad(q) for q in initq_deg]
-
+#initq = [np.deg2rad(q) for q in initq_deg]
+initq =copy.copy(const.Constants.HOME_JOINTS)
+#print(np.rad2deg(initq))
 #get the full path
 dirname = os.path.dirname(__file__)
 abspath = os.path.join(dirname, xml_path)
@@ -258,7 +261,7 @@ cam.lookat =np.array([ 0.0 , 0.0 , 0.0 ])
 #i = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "marker1")
 
 # state.qtarget_ = initq
-data.qpos = initq
+data.qpos = copy.deepcopy(initq)
 
 for i, jnt in enumerate(simState.joints_):
     jnt.qtarget_ = initq[i]
