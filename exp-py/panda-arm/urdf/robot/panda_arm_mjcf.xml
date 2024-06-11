@@ -1,5 +1,5 @@
 <mujoco model="panda">
-  <compiler angle="radian" meshdir="../meshes/collision/"/>
+  <compiler angle="radian" meshdir="../meshes/visual/"/>
   <asset>
     <mesh name="link0" file="link0.stl"/>
     <mesh name="link1" file="link1.stl"/>
