@@ -230,3 +230,11 @@ https://github.com/justagist/franka_panda_description
   * VSCode下隅から環境を選択可能。指定するvenvが表示されない場合、フォルダから`Python.exe`のパスを指定すればよい。
   * ![alt text](image.png)
   * [参考リンク](https://qiita.com/watahani/items/7c1b3b6c470b2f08bf51) 
+  
+### rotation
+* quatarnionの定義順が環境により異なる
+  * mujoco -> `q = (w, x, y, z)`
+  * scipy -> `q = (x, y, z, w)`
+    * 引数に`schalar_first`をつけると変更できるらしいがなぜか実行時異常でうまくいかず。
+* 外因性/内因性オイラーの説明. 大文字小文字を区別すること
+  > 3 characters belonging to the set {‘X’, ‘Y’, ‘Z’} for intrinsic rotations, or {‘x’, ‘y’, ‘z’} for extrinsic rotations [1]. 
