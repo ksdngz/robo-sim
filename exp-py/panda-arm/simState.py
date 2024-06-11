@@ -66,10 +66,18 @@ class SimState:
         #index_tcp = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, 'panda_link7')
         index_tcp = 7 # todo to be refactored
         # to do change from quat to rpy
-        rpy = [0]*3        
-        quat = np.array(data.xquat[index_tcp])
-        rot = Rotation.from_quat(quat)
-        angle = rot.as_euler('ZYX', degrees=True)        
+#        rpy = [0]*3        
+#        xmat = np.array(data.xmat[index_tcp])
+        quat = np.array(data.xquat[index_tcp]) # q = (w, x, y, z).
+        q_w = quat[0]
+        q_x = quat[1]
+        q_y = quat[2]
+        q_z = quat[3]
+        newQ = np.array([q_x, q_y, q_z, q_w])
+#        rot = Rotation.from_matrix(xmat)
+        rot = Rotation.from_quat(newQ) # x, y, z, w
+        angle = rot.as_euler('zyx', degrees=True)        
+#        angle = rot.as_euler('ZYX', degrees=True)        
         self.__tcp.update(data.xpos[index_tcp], angle)        
         self.dataLogger.log(self.time(), self.qs(), self.qdots(), self.qcmds(), self.qdotcmds())        
 

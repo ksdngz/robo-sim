@@ -100,9 +100,14 @@ class TaskManager:
                 ro = np.deg2rad(tcpTarget[3])
                 pi = np.deg2rad(tcpTarget[4])
                 ya = np.deg2rad(tcpTarget[5])
-                rot = SE3.RPY(ro,pi,ya)                
+#                rot = SE3.RPY(ro,pi,ya)
+                gamma = [ro,pi,ya]
+                rot = SE3.RPY(gamma, order="xyz")
+#                rot = SE3.RPY(gamma, order="zyx")
+                          
                 trans = SE3.Trans(x,y,z)
                 target = trans * rot
+                print(target)
                 q0 : np.ndarray = np.array(np.deg2rad(self.__simState.qs())) # [rad]
                 q : np.ndarray = rtb.inverseKin(target, q0) # [rad]
                 jntTarget : list[float] = np.rad2deg(q) #[deg]

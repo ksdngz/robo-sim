@@ -144,11 +144,11 @@ class Debugger:
         self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
 
     def __onbtn_moveZero(self):
-        targets : list[tuple[int, float]] = [(i+1, np.rad2deg(j)) for i,j in enumerate(const.Constants.ZERO_JOINTS)]
+        targets : list[tuple[int, float]] = [(i+1, np.rad2deg(j)) for i,j in enumerate(const.ZERO_JOINTS)]
         self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
 
     def __onbtn_moveHome(self):
-        hjoint = copy.copy(const.Constants.HOME_JOINTS)  
+        hjoint = copy.copy(const.HOME_JOINTS)  
         #hjoint = [0, -np.pi / 4, 0, -3 * np.pi / 4, 0, np.pi / 2, np.pi / 4]  
         targets : list[tuple[int, float]] = [(i+1, np.rad2deg(j)) for i,j in enumerate(hjoint)]
         self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))

@@ -27,6 +27,8 @@ def inverseKin(
     success : bool = ret[1]
     if success == 0:
         print('rtb ik solution was found but in error.')
+    print('rtb ik solution::')
+    print(np.rad2deg(q))
     return q
 
 # sample inverse dynamics

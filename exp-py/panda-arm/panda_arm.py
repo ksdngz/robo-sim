@@ -190,7 +190,7 @@ gCount = 0
 initq_deg = [0, 10, 0, -150, 0, 180, 0]
 #initq = [0., 1.3, 0., 0., 0., 0., 0.]
 #initq = [np.deg2rad(q) for q in initq_deg]
-initq =copy.copy(const.Constants.HOME_JOINTS)
+initq =copy.copy(const.HOME_JOINTS)
 #print(np.rad2deg(initq))
 #get the full path
 dirname = os.path.dirname(__file__)
