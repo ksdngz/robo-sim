@@ -1,5 +1,6 @@
 import queue
 import numpy as np
+import copy
 
 class Point:
     def __init__(self, 
@@ -20,6 +21,14 @@ class Trajectory:
 
     def pop(self):
         return self.__points.get()
+    
+    def pointList(self) -> list[tuple[int, float]]:
+        plist : list[Point] = copy.deepcopy(list(self.__points.queue))
+        print(repr(plist[0]), repr(self.__points.queue[0])) 
+        # points = copy.deepcopy(self.__points)
+        # print(repr(points), repr(self.__points)) 
+        # return [(i, points.get()) for i in points.qsize()]
+        return plist
     
 class Motion:
     def __init__(self, 
