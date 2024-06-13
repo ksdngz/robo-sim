@@ -36,6 +36,24 @@ $$
 
 
 
+## 手先直線補間
+軌跡の初期値$\bm{p}_0=[p_{x0}, p_{y0}, p_{z0}]^{T}$、終端値$\bm{p}_f=[p_{xf}, p_{yf}, p_{zf}]^{T}$とする直線上の目標値$\bm{p}_d$は以下となる。
+$$
+\bm{p}_d(s) = \bm{p}_0(1-s)+\bm{p}_fs \quad (s\in[0,1]) \tag{1}
+$$
+$s$を時間関数として定義し合成関数として表すと時間軌道が求まる。単純な例として、cos関数を使用して簡易的に曲線を用いる。
+$$
+s(t) = 1-\frac{1}{2}cos(\frac{\pi}{T}t) \quad (t\in[0,T])　\tag{2}
+$$
+
+代入すると、
+$$
+\bm{p}_d(t) = (\bm{p}_f - \bm{p}_0)(1-\frac{1}{2}cos(\frac{\pi}{T}t))+\bm{p}_0 \tag{3}
+$$
+```python
+rate : float = float(i/steps)
+p : np.ndarray = startPos + (targetPos-startPos)*(1 - np.cos(np.pi*rate))/2 # [deg]
+```
 
 ## その他
 - [mujoco-py](https://github.com/openai/mujoco-py)は開発終了のようである。今後は本流のpython bindingsに一本化される。
