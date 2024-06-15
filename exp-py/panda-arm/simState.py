@@ -1,6 +1,9 @@
 import numpy as np
 from scipy.spatial.transform import Rotation
 import debugger.dataLogger as dl
+from external import rtbWrapper as rtb
+from spatialmath import SE3
+from spatialmath.base import tr2rpy, rpy2tr
 
 class JointState:
     def __init__(self):
@@ -56,7 +59,7 @@ class SimState:
     def qdotcmds(self):
         return [self.joints_[i].dqcmd_ for i in range(self.qsize_)]
 
-    def tcpPose(self):
+    def tcpPose(self) -> list[float]:
         return self.__tcp.pose()
 
     def update(self, data, qcmd, dqcmd):
@@ -65,20 +68,27 @@ class SimState:
             jnt.update(data.qpos[i], data.qvel[i], qcmd[i], dqcmd[i])
         #index_tcp = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, 'panda_link7')
         index_tcp = 7 # todo to be refactored
+        qs : np.ndarray = np.deg2rad(np.array(self.qs())) #[rad]
+        p : SE3 = rtb.forwardKin(qs) #[rad]
+        p_eulzyx : np.ndarray = tr2rpy(p.R, unit='rad', order='zyx')
+        #print("p_eulzyx", p_eulzyx)
+        trans = [p.x, p.y, p.z]
+        self.__tcp.update(trans, np.rad2deg(p_eulzyx)) # eul(zyx) [deg]        
+
         # to do change from quat to rpy
 #        rpy = [0]*3        
 #        xmat = np.array(data.xmat[index_tcp])
-        quat = np.array(data.xquat[index_tcp]) # q = (w, x, y, z).
-        q_w = quat[0]
-        q_x = quat[1]
-        q_y = quat[2]
-        q_z = quat[3]
-        newQ = np.array([q_x, q_y, q_z, q_w])
-#        rot = Rotation.from_matrix(xmat)
-        rot = Rotation.from_quat(newQ) # x, y, z, w
-        angle = rot.as_euler('zyx', degrees=True)        
+#        quat = np.array(data.xquat[index_tcp]) # q = (w, x, y, z).
+#        q_w = quat[0]
+#        q_x = quat[1]
+#        q_y = quat[2]
+#        q_z = quat[3]
+#        newQ = np.array([q_x, q_y, q_z, q_w])
+##        rot = Rotation.from_matrix(xmat)
+#        rot = Rotation.from_quat(newQ) # x, y, z, w
+#        angle = rot.as_euler('zyx', degrees=True)        
 #        angle = rot.as_euler('ZYX', degrees=True)        
-        self.__tcp.update(data.xpos[index_tcp], angle)        
+#        self.__tcp.update(data.xpos[index_tcp], angle)        
         self.dataLogger.log(self.time(), self.qs(), self.qdots(), self.qcmds(), self.qdotcmds())        
 
     def startDataLog(self):

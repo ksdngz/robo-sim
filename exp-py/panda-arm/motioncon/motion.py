@@ -4,7 +4,7 @@ import copy
 
 class Point:
     def __init__(self, 
-                 t, 
+                 t : int,
                  ps : np.ndarray):        
         self.time = t
         self.ps = ps
@@ -19,7 +19,7 @@ class Trajectory:
     def push(self, point : list[float]):
         self.__points.put(point)
 
-    def pop(self):
+    def pop(self) -> Point:
         return self.__points.get()
     
     def pointList(self) -> list[tuple[int, float]]:

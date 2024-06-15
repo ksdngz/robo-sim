@@ -21,15 +21,20 @@ def inverseKin(
     tep : np.ndarray, #[rad]
     q0_ : np.ndarray) -> np.ndarray: #[rad] -> [rad]
     robot = rtb.models.DH.Panda()
-    print(robot.fkine(q0_))
+#    print(robot.fkine(q0_))
     ret = robot.ik_LM(tep, q0=q0_) # tuple (q, success, iterations, searches, residual)
     q : np.ndarray = ret[0]
     success : bool = ret[1]
     if success == 0:
         print('rtb ik solution was found but in error.')
-    print('rtb ik solution::')
-    print(np.rad2deg(q))
+#    print('rtb ik solution::')
+#    print(np.rad2deg(q))
     return q
+
+def forwardKin(q : np.ndarray) -> np.ndarray: #[rad] -> [rad]
+    robot = rtb.models.DH.Panda()
+    return robot.fkine(q)
+
 
 # sample inverse dynamics
 #puma = rtb.models.DH.Puma560()

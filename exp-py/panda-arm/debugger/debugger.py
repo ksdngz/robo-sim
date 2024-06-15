@@ -157,9 +157,14 @@ class Debugger:
         tcp = self.tcpView.getPose()
         self.tcpCmdView.updateValues(tcp)
 
-    def __onbtn_moveTcp(self):
+    def __onbtn_moveJointAllTcpBase(self):
         tcp = self.tcpCmdView.getPose()
         self.__allJointsRequest.put(tr.MultiJointMoveTcpRequest(tcp))
+
+    def __onbtn_moveTcpStraight(self):
+        tcp = self.tcpCmdView.getPose()
+        self.__allJointsRequest.put(tr.TCPMoveStraightRequest(tcp))
+
 
     def start(self):
         self.running = True
@@ -227,8 +232,10 @@ class Debugger:
         rowNum = rowNum + 1
         self.btn_tcpcpy      = tk.Button(self.tcpFrame, text="copy", command=self.__onbtn_copyTcp)
         self.btn_tcpcpy.grid(column=1, row=rowNum)
-        self.btn_movetcp      = tk.Button(self.tcpFrame, text="moveJntAll", command=self.__onbtn_moveTcp)
+        self.btn_movetcp      = tk.Button(self.tcpFrame, text="moveJntAll", command=self.__onbtn_moveJointAllTcpBase)
         self.btn_movetcp.grid(column=2, row=rowNum)
+        self.btn_movetcpStraight      = tk.Button(self.tcpFrame, text="moveStraight", command=self.__onbtn_moveTcpStraight)
+        self.btn_movetcpStraight.grid(column=3, row=rowNum)
 
         # Widget
         self.update()
