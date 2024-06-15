@@ -118,20 +118,21 @@ class TaskManager:
             elif type == tms.tr.TaskRequestType.MULTI_JOINT_MOVE_TCP:
                 # tcpTarget : list[float] = args.get() # [deg]
                 tcpTarget : np.ndarray = np.array(args.get())# [deg]
-                x = tcpTarget[0]
-                y = tcpTarget[1]
-                z = tcpTarget[2]
-                ro = np.deg2rad(tcpTarget[3])
-                pi = np.deg2rad(tcpTarget[4])
-                ya = np.deg2rad(tcpTarget[5])
-#                rot = SE3.RPY(ro,pi,ya)
-                gamma = [ro,pi,ya]
-                rot = SE3.RPY(gamma, order="xyz")
-#                rot = SE3.RPY(gamma, order="zyx")
-                          
-                trans = SE3.Trans(x,y,z)
-                target = trans * rot
-                print(target)
+                target : SE3 = se3(rot_deg2rad(tcpTarget)) # SE3 [rad]
+#                x = tcpTarget[0]
+#                y = tcpTarget[1]
+#                z = tcpTarget[2]
+#                ro = np.deg2rad(tcpTarget[3])
+#                pi = np.deg2rad(tcpTarget[4])
+#                ya = np.deg2rad(tcpTarget[5])
+##                rot = SE3.RPY(ro,pi,ya)
+#                gamma = [ro,pi,ya]
+#                rot = SE3.RPY(gamma, order="xyz")
+##                rot = SE3.RPY(gamma, order="zyx")
+#                          
+#                trans = SE3.Trans(x,y,z)
+#                target = trans * rot
+                print('tcpTarget', target)
                 q0 : np.ndarray = np.array(np.deg2rad(self.__simState.qs())) # [rad]
                 q : np.ndarray = rtb.inverseKin(target, q0) # [rad]
                 jntTarget : list[float] = np.rad2deg(q) #[deg]
