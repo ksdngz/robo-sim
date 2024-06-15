@@ -17,6 +17,14 @@ def updateEntryValueFloat(entry : tk.Entry,
     entry.insert(tk.END, "{:.2f}".format(val))
     entry.configure(state=orgState)
 
+def updateEntryValueString(entry : tk.Entry,
+                     val : str) -> None:
+    orgState = entry.cget("state")
+    entry.configure(state='normal')
+    entry.delete(0, tk.END)
+    entry.insert(tk.END, val)
+    entry.configure(state=orgState)
+
 def getEntryValue(entry : tk.Entry) -> float:
     s = entry.get()
     if not com.isNum(s):
@@ -124,6 +132,10 @@ class Debugger:
         # tcp view
         self.tcpView.updateValues(self.state_.tcpPose())
 
+        # status view
+        updateEntryValueString(self.entry_movingState, self.state_.controllerState.motionState.name)
+        
+        # continuous gui update 
         self.window.after(1000, self.update)
 
     def __onbtn_startDataLog(self):
@@ -170,7 +182,7 @@ class Debugger:
         self.running = True
         self.window = tk.Tk()
         self.window.title("Debugger")
-        self.window.geometry('540x340')
+        self.window.geometry('740x340')
 
         # frame
         self.jntFrame = tk.Frame(self.window, relief=tk.GROOVE, bd=2)
@@ -179,11 +191,14 @@ class Debugger:
         self.tcpFrame.propagate(False)
         self.datalogFrame = tk.Frame(self.window, relief=tk.GROOVE, bd=2)
         self.datalogFrame.propagate(False)
+        self.statusFrame = tk.Frame(self.window, relief=tk.GROOVE, bd=2)
+        self.statusFrame.propagate(False)
 
         # frame layout
         self.jntFrame.grid(column=1, row=1)
-        self.tcpFrame.grid(column=1, row=2)
-        self.datalogFrame.grid(column=2, row=1)
+        self.tcpFrame.grid(column=2, row=1)
+        self.statusFrame.grid(column=1, row=2)
+        self.datalogFrame.grid(column=2, row=2)
 
         # Joint Widgets
         #JOINT_NUM = 7
@@ -237,6 +252,13 @@ class Debugger:
         self.btn_movetcpStraight      = tk.Button(self.tcpFrame, text="moveStraight", command=self.__onbtn_moveTcpStraight)
         self.btn_movetcpStraight.grid(column=3, row=rowNum)
 
+        # Status Widgets
+        STATE_ENTRY_WIDTH = 12
+        self.label_movingState = tk.Label(self.statusFrame, text="movingState", width=STATE_ENTRY_WIDTH)
+        self.entry_movingState = tk.Entry(self.statusFrame, state="readonly", width=STATE_ENTRY_WIDTH)
+        self.label_movingState.grid(column=1, row=1)
+        self.entry_movingState.grid(column=2, row=1)
+        
         # Widget
         self.update()
         self.window.mainloop()

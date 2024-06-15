@@ -1,5 +1,6 @@
 from motioncon import motionControllerService as mcs
 from lowlevelcon import lowLevelController as llc
+import simState
 
 class MotionController:
     def __init__(self, lowLevelCon : llc.LowLevelController):
@@ -10,7 +11,7 @@ class MotionController:
     def getService(self):
         return self.__service
 
-    def tick(self):
+    def tick(self, state : simState.ControllerState):
         if self.__execMotion == None:
             if self.__service.hasRequest():
                 req : mcs.mr.MotionRequest = self.__service.popRequest()
@@ -35,6 +36,7 @@ class MotionController:
         # tick
         if self.__execMotion is not None:
             motion = self.__execMotion
+            state.motionState = simState.MotionState.MOVING
             if not motion.traj.isEmpty():
                 point = motion.traj.pop()
                 cmdPos = self.__llc.getCmdPos()
@@ -44,3 +46,6 @@ class MotionController:
                 self.__llc.update(cmdPos)
             else:
                 self.__execMotion = None
+        else:
+            state.motionState = simState.MotionState.IDLE
+                

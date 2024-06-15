@@ -273,7 +273,7 @@ while not glfw.window_should_close(window):
         mj.mj_step(model, data)
         simState.update(data, lowLevelCon.getCmdPos(), lowLevelCon.getCmdVel())
         taskMgr.tick()
-        motionCon.tick()
+        motionCon.tick(simState.controllerState)
         lowLevelCon.tick(model, data)
                 
 #    if (data.time>=simend):

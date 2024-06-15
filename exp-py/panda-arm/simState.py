@@ -4,6 +4,24 @@ import debugger.dataLogger as dl
 from external import rtbWrapper as rtb
 from spatialmath import SE3
 from spatialmath.base import tr2rpy, rpy2tr
+from enum import Enum
+
+class MotionState(Enum):
+    IDLE    = 0
+    MOVING  = 1
+
+class ControllerState:
+    def __init__(self):
+        self.__motionState = MotionState.IDLE
+
+    @property
+    def motionState(self):
+        return self.__motionState
+     
+    @motionState.setter
+    def motionState(self, value):
+        self.__motionState = value
+
 
 class JointState:
     def __init__(self):
@@ -43,6 +61,7 @@ class SimState:
         self.qsize_ = qSize
         self.__time = 0
         self.dataLogger = dl.DataLogger()
+        self.controllerState = ControllerState()
 
     def time(self):
         return self.__time
