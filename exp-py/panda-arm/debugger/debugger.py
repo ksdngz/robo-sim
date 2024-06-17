@@ -6,6 +6,7 @@ from common import common_constants as const
 import simState as ss
 from task import taskRequest as tr
 from task import taskManagerService as tms
+from common.pose3d import Pose3d
 
 import copy
 
@@ -91,22 +92,23 @@ class PoseView:
                  frame, 
                  name : str,
                  rowNum : int,
-                 optState : str ='normal'): # 'normal' 'readonly'
+                 optState : str ='normal'): # 'normal', 'readonly'
         ENTRY_WIDTH = 7
-        CARTESIAN_POSE_SIZE = 6
         self.label          = tk.Label(frame, text=name)
-        self.entries        = [tk.Entry(frame, state=optState, width=ENTRY_WIDTH) for i in range(CARTESIAN_POSE_SIZE) ]
+        self.entries        = [tk.Entry(frame, state=optState, width=ENTRY_WIDTH) for i in range(const.CARTESIAN_POSE_SIZE) ]
         self.label.grid(column= 0, row=rowNum)
         for i, entry in enumerate(self.entries):
             entry.grid(column=i+1, row=rowNum)
 
     def updateValues(self, 
-                     pose: list[float]) -> None:
+                     pose: Pose3d) -> None:
+        p : np.ndarray = pose.eul()
         for i,entry in enumerate(self.entries):
-            updateEntryValueFloat(entry, pose[i])
+            updateEntryValueFloat(entry, p[i])
 
-    def getPose(self) -> list[float]:
-        return [getEntryValue(entry) for entry in self.entries]
+    def getPose(self) -> Pose3d:
+        ps : list[float] = [getEntryValue(entry) for entry in self.entries]
+        return Pose3d(ps)
 
 class Debugger:
     def __init__(self, 
@@ -166,7 +168,7 @@ class Debugger:
         self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
 
     def __onbtn_copyTcp(self):
-        tcp = self.tcpView.getPose()
+        tcp : Pose3d = self.tcpView.getPose()
         self.tcpCmdView.updateValues(tcp)
 
     def __onbtn_moveJointAllTcpBase(self):
@@ -238,7 +240,7 @@ class Debugger:
 
         rowNum : int = 1
         self.tcpView = PoseView(self.tcpFrame, 'tcp', rowNum, 'readonly')
-        pose = [0]*6
+        pose = Pose3d()
         self.tcpView.updateValues(pose)
 
         rowNum = rowNum + 1

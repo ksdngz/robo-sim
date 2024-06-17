@@ -4,3 +4,4 @@ import numpy as np
 ZERO_JOINTS = [0, 0, 0, 0, 0, 0, 0]
 HOME_JOINTS = [0, -np.pi / 4, 0, -3 * np.pi / 4, 0, np.pi / 2, np.pi / 4]
 JOINT_NUM = 7
+CARTESIAN_POSE_SIZE = 6

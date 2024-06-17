@@ -1,10 +1,11 @@
+from enum import Enum
 import numpy as np
 from scipy.spatial.transform import Rotation
 import debugger.dataLogger as dl
 from external import rtbWrapper as rtb
 from spatialmath import SE3
 from spatialmath.base import tr2rpy, rpy2tr
-from enum import Enum
+from common.pose3d import Pose3d
 
 class MotionState(Enum):
     IDLE    = 0
@@ -39,20 +40,19 @@ class JointState:
             
 class TcpState:
     def __init__(self):
-        self.__pos : list[float] = [0.]*3
-        self.__rot : list[float] = [0.]*3        
+        self.__pose = Pose3d()
+#        self.__pos : list[float] = [0.]*3
+#        self.__rot : list[float] = [0.]*3        
 
     def update(self, 
-               pos: list[float], 
-               rot: list[float]):
-        self.__pos = pos
-        self.__rot = rot
+               pose: Pose3d) -> None:
+        self.__pose = pose
     
-    def pose(self) -> list[float]:
-        pose : list[float] = []
-        pose.extend(self.__pos)
-        pose.extend(self.__rot)
-        return pose
+    def pose(self) -> Pose3d:
+#        pose : list[float] = []
+#        pose.extend(self.__pos)
+#        pose.extend(self.__rot)
+        return self.__pose
 
 class SimState:
     def __init__(self, qSize):
@@ -78,7 +78,7 @@ class SimState:
     def qdotcmds(self):
         return [self.joints_[i].dqcmd_ for i in range(self.qsize_)]
 
-    def tcpPose(self) -> list[float]:
+    def tcpPose(self) -> Pose3d:
         return self.__tcp.pose()
 
     def update(self, data, qcmd, dqcmd):
@@ -89,10 +89,11 @@ class SimState:
         index_tcp = 7 # todo to be refactored
         qs : np.ndarray = np.deg2rad(np.array(self.qs())) #[rad]
         p : SE3 = rtb.forwardKin(qs) #[rad]
-        p_eulzyx : np.ndarray = tr2rpy(p.R, unit='rad', order='zyx')
+#        p_eulzyx : np.ndarray = tr2rpy(p.R, unit='rad', order='zyx')
         #print("p_eulzyx", p_eulzyx)
-        trans = [p.x, p.y, p.z]
-        self.__tcp.update(trans, np.rad2deg(p_eulzyx)) # eul(zyx) [deg]        
+#        trans = [p.x, p.y, p.z]
+#       self.__tcp.update(trans, np.rad2deg(p_eulzyx)) # eul(zyx) [deg]        
+        self.__tcp.update(p)
 
         # to do change from quat to rpy
 #        rpy = [0]*3        

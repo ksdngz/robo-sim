@@ -1,5 +1,6 @@
 import roboticstoolbox as rtb
 import numpy as np
+from common.pose3d import Pose3d
 
 robot = rtb.models.DH.Panda()
 #print(robot)
@@ -12,17 +13,16 @@ g = robot.gravload(robot.q)
 #print("coriolis:", c)
 #print("grav:", g)
 
-def calcGravComp(q):
+def calcGravComp(q : np.ndarray) -> np.ndarray:
     robot = rtb.models.DH.Panda()
     g = robot.gravload(q)
     return g
 
 def inverseKin(
-    tep : np.ndarray, #[rad]
-    q0_ : np.ndarray) -> np.ndarray: #[rad] -> [rad]
+    p : Pose3d, #[rad]
+    q0 : np.ndarray) -> np.ndarray: #[rad] -> [rad]
     robot = rtb.models.DH.Panda()
-#    print(robot.fkine(q0_))
-    ret = robot.ik_LM(tep, q0=q0_) # tuple (q, success, iterations, searches, residual)
+    ret = robot.ik_LM(p.se3(), q0=q0) # tuple (q, success, iterations, searches, residual)
     q : np.ndarray = ret[0]
     success : bool = ret[1]
     if success == 0:
@@ -31,10 +31,9 @@ def inverseKin(
 #    print(np.rad2deg(q))
     return q
 
-def forwardKin(q : np.ndarray) -> np.ndarray: #[rad] -> [rad]
+def forwardKin(q : np.ndarray) -> Pose3d:
     robot = rtb.models.DH.Panda()
-    return robot.fkine(q)
-
+    return Pose3d(robot.fkine(q))
 
 # sample inverse dynamics
 #puma = rtb.models.DH.Puma560()
