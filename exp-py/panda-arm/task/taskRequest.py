@@ -1,6 +1,6 @@
 import queue
 from enum import Enum
-from common.pose3d import Pose3d
+from common.pose6d import Pose6d
 
 class TaskRequestType(Enum):
     NONE                    = 0
@@ -26,11 +26,11 @@ class MultiJointMoveRequest(TaskRequest):
         self.getArgs().put(targets)
 
 class MultiJointMoveTcpRequest(TaskRequest):
-    def __init__(self, tcp : Pose3d):
+    def __init__(self, tcp : Pose6d):
         super().__init__(TaskRequestType.MULTI_JOINT_MOVE_TCP)
         self.getArgs().put(tcp)
 
 class TCPMoveStraightRequest(TaskRequest):
-    def __init__(self, tcp : Pose3d):
+    def __init__(self, tcp : Pose6d):
         super().__init__(TaskRequestType.TCP_MOVE_STRAIGHT)
         self.getArgs().put(tcp)

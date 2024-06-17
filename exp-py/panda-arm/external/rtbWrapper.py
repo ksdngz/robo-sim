@@ -1,6 +1,6 @@
 import roboticstoolbox as rtb
 import numpy as np
-from common.pose3d import Pose3d
+from common.pose6d import Pose6d
 
 robot = rtb.models.DH.Panda()
 #print(robot)
@@ -19,7 +19,7 @@ def calcGravComp(q : np.ndarray) -> np.ndarray:
     return g
 
 def inverseKin(
-    p : Pose3d, #[rad]
+    p : Pose6d, #[rad]
     q0 : np.ndarray) -> np.ndarray: #[rad] -> [rad]
     robot = rtb.models.DH.Panda()
     ret = robot.ik_LM(p.se3(), q0=q0) # tuple (q, success, iterations, searches, residual)
@@ -31,9 +31,9 @@ def inverseKin(
 #    print(np.rad2deg(q))
     return q
 
-def forwardKin(q : np.ndarray) -> Pose3d:
+def forwardKin(q : np.ndarray) -> Pose6d:
     robot = rtb.models.DH.Panda()
-    return Pose3d(robot.fkine(q))
+    return Pose6d(robot.fkine(q))
 
 # sample inverse dynamics
 #puma = rtb.models.DH.Puma560()

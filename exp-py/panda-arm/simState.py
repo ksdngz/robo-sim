@@ -5,7 +5,7 @@ import debugger.dataLogger as dl
 from external import rtbWrapper as rtb
 from spatialmath import SE3
 from spatialmath.base import tr2rpy, rpy2tr
-from common.pose3d import Pose3d
+from common.pose6d import Pose6d
 
 class MotionState(Enum):
     IDLE    = 0
@@ -40,15 +40,15 @@ class JointState:
             
 class TcpState:
     def __init__(self):
-        self.__pose = Pose3d()
+        self.__pose = Pose6d()
 #        self.__pos : list[float] = [0.]*3
 #        self.__rot : list[float] = [0.]*3        
 
     def update(self, 
-               pose: Pose3d) -> None:
+               pose: Pose6d) -> None:
         self.__pose = pose
     
-    def pose(self) -> Pose3d:
+    def pose(self) -> Pose6d:
 #        pose : list[float] = []
 #        pose.extend(self.__pos)
 #        pose.extend(self.__rot)
@@ -78,7 +78,7 @@ class SimState:
     def qdotcmds(self):
         return [self.joints_[i].dqcmd_ for i in range(self.qsize_)]
 
-    def tcpPose(self) -> Pose3d:
+    def tcpPose(self) -> Pose6d:
         return self.__tcp.pose()
 
     def update(self, data, qcmd, dqcmd):

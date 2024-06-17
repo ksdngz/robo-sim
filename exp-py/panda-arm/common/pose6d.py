@@ -10,14 +10,14 @@ def rot_deg2rad(pose : np.ndarray):
         out[i] = np.deg2rad(pose[i])
     return out
 
-class Pose3d:
-    # In Pose3d, all of units are defined as radian.
+class Pose6d:
+    # In Pose6d, all of units are defined as radian.
                 
     def __init__(self, 
                  pose : Union[np.ndarray, SE3, list[float], None] = None):
         if type(pose) == np.ndarray or type(pose) == list:
             if len(pose) is not const.CARTESIAN_POSE_SIZE:
-                print("Pose3d: Warning, size of pose is not correct.")
+                print("Pose6d: Warning, size of pose is not correct.")
                 print("type:", type(pose), "size:", len(pose))
                 self.__pose = SE3() # identity
             else:                
@@ -39,16 +39,16 @@ class Pose3d:
         return self.__pose
     
     def __add__(self, other):
-        if isinstance(other, Pose3d):        
+        if isinstance(other, Pose6d):        
             return self.__pose + other.__pose
         raise TypeError()    
 
     def __sub__(self, other):
-        if isinstance(other, Pose3d):        
+        if isinstance(other, Pose6d):        
             return self.__pose - other.__pose
         raise TypeError()    
 
     def __mul__(self, other):
-        if isinstance(other, Pose3d):        
+        if isinstance(other, Pose6d):        
             return self.__pose * other.__pose
         raise TypeError()

@@ -8,7 +8,7 @@ from planner import trajectoryProfiler as trajprof
 import simState as ss
 from external import rtbWrapper as rtb
 from common import common_constants
-from common.pose3d import Pose3d
+from common.pose6d import Pose6d
 
 class TaskManager:
     def __init__(self,
@@ -52,7 +52,7 @@ class TaskManager:
 
             elif type == tms.tr.TaskRequestType.MULTI_JOINT_MOVE_TCP:
                 # tcpTarget : list[float] = args.get() # [deg]
-                target : Pose3d = args.get()
+                target : Pose6d = args.get()
 #                tcpTarget : np.ndarray = np.array(args.get())# [deg]
 #                target : SE3 = se3(rot_deg2rad(tcpTarget)) # SE3 [rad]
 #                x = tcpTarget[0]
@@ -80,8 +80,8 @@ class TaskManager:
             
             elif type == tms.tr.TaskRequestType.TCP_MOVE_STRAIGHT:
                 # tcpTarget : np.ndarray = np.array(args.get())# [deg]
-                tcpTarget : Pose3d = args.get()
-                tcp0 : Pose3d = self.__simState.tcpPose()
+                tcpTarget : Pose6d = args.get()
+                tcp0 : Pose6d = self.__simState.tcpPose()
                 #tcp0 : np.ndarray = np.array(self.__simState.tcpPose())# [deg]
                 # todo to change tcp rotation from deg to rad
                 # rot_deg2rad = lambda pose: pose[0:3] + [np.deg2rad(r) for r in pose[3:6]]
@@ -102,7 +102,7 @@ class TaskManager:
                 print('start: q0', np.rad2deg(q0))
                 while not tcpTraj.isEmpty():
                     tcpPoint : mcs.mr.mo.Point = tcpTraj.pop()
-                    ps = Pose3d(tcpPoint.ps) # tcpPoint.ps[rad]
+                    ps = Pose6d(tcpPoint.ps) # tcpPoint.ps[rad]
                     q : np.ndarray = rtb.inverseKin(ps, q0) # [rad]                   
                     qtraj.push(mcs.mr.mo.Point(tcpPoint.time, q))
                     q0 = q

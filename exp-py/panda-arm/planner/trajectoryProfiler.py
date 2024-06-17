@@ -1,13 +1,13 @@
 from typing import Union
 import numpy as np
 from motioncon import motionControllerService as mcs
-from common.pose3d import Pose3d
+from common.pose6d import Pose6d
 
 class MultiSignedProfiler:
     @classmethod
     def generateTraj(cls,
-                     startPos : Union[np.ndarray, Pose3d],
-                     targetPos : Union[np.ndarray, Pose3d],
+                     startPos : Union[np.ndarray, Pose6d],
+                     targetPos : Union[np.ndarray, Pose6d],
                      steps : int
                      ) -> Union[mcs.mr.mo.Trajectory, None] :
         # check type
@@ -15,7 +15,7 @@ class MultiSignedProfiler:
             print("generateTraj: input type error", "s:", type(startPos), "t:", type(targetPos))
             return None
         
-        if type(startPos) == Pose3d:
+        if type(startPos) == Pose6d:
             s = startPos.eul()
             t = targetPos.eul()
         elif type(startPos) == np.ndarray:

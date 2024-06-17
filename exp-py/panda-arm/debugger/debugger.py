@@ -6,7 +6,7 @@ from common import common_constants as const
 import simState as ss
 from task import taskRequest as tr
 from task import taskManagerService as tms
-from common.pose3d import Pose3d
+from common.pose6d import Pose6d
 
 import copy
 
@@ -101,14 +101,14 @@ class PoseView:
             entry.grid(column=i+1, row=rowNum)
 
     def updateValues(self, 
-                     pose: Pose3d) -> None:
+                     pose: Pose6d) -> None:
         p : np.ndarray = pose.eul()
         for i,entry in enumerate(self.entries):
             updateEntryValueFloat(entry, p[i])
 
-    def getPose(self) -> Pose3d:
+    def getPose(self) -> Pose6d:
         ps : list[float] = [getEntryValue(entry) for entry in self.entries]
-        return Pose3d(ps)
+        return Pose6d(ps)
 
 class Debugger:
     def __init__(self, 
@@ -168,7 +168,7 @@ class Debugger:
         self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
 
     def __onbtn_copyTcp(self):
-        tcp : Pose3d = self.tcpView.getPose()
+        tcp : Pose6d = self.tcpView.getPose()
         self.tcpCmdView.updateValues(tcp)
 
     def __onbtn_moveJointAllTcpBase(self):
@@ -240,7 +240,7 @@ class Debugger:
 
         rowNum : int = 1
         self.tcpView = PoseView(self.tcpFrame, 'tcp', rowNum, 'readonly')
-        pose = Pose3d()
+        pose = Pose6d()
         self.tcpView.updateValues(pose)
 
         rowNum = rowNum + 1
