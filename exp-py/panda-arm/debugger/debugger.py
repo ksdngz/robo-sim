@@ -32,6 +32,49 @@ def getEntryValue(entry : tk.Entry) -> float:
         return 0. # todo to returns error in case of not number
     return float(s)
 
+class DataLogView:
+    def __init__(self, window: tk.Tk, state: ss.SimState):
+        self.__frame = tk.Frame(window, relief=tk.GROOVE, bd=2)
+        self.__state = state
+        self.btn_startDataLog = tk.Button(self.__frame, text="start", command=self.__onbtn_startDataLog)
+        self.btn_endDataLog = tk.Button(self.__frame, text="end", command=self.__onbtn_endDataLog)
+        self.btn_showDataLog = tk.Button(self.__frame, text="show", command=self.__onbtn_showDataLog)
+        self.__enableJointLog = tk.BooleanVar(value = True) # set True as initial value
+        self.check_jointDataLog = tk.Checkbutton(self.__frame, 
+                           text = "joint",
+                           command = self.__checkJointLog,
+                           variable = self.__enableJointLog)
+
+    def grid(self, col: int , row: int) -> None:
+        self.__frame.grid(column=col, row=row)
+        rowNum = 0
+#        self.btn_startDataLog.grid(column=1, row=rowNum)
+#        self.btn_endDataLog.grid(column=2, row=rowNum)
+#        self.btn_showDataLog.grid(column=3, row=rowNum)
+        rowNum = 1
+#        self.btn_startDataLog.grid(column=1, row=2)
+        self.check_jointDataLog.pack()
+        self.btn_startDataLog.pack()
+        self.btn_endDataLog.pack()
+        self.btn_showDataLog.pack()
+
+    def __onbtn_startDataLog(self):
+        isEnableJointLog: bool = self.__enableJointLog.get()
+        print('joint log enable:', isEnableJointLog)
+        self.__state.startDataLog()
+        
+    def __onbtn_endDataLog(self):
+        self.__state.endDataLog()        
+
+    def __onbtn_showDataLog(self):
+        self.__state.showDataLog()        
+    
+    def __checkJointLog(self) -> None:
+        return
+        
+
+
+
 class JointView:
     def __init__(self, frame, name, rowNum, state, index):
         ENTRY_WIDTH = 8
@@ -139,16 +182,8 @@ class Debugger:
         
         # continuous gui update 
         self.window.after(1000, self.update)
-
-    def __onbtn_startDataLog(self):
-        self.state_.startDataLog()
         
-    def __onbtn_endDataLog(self):
-        self.state_.endDataLog()        
-
-    def __onbtn_showDataLog(self):
-        self.state_.showDataLog()        
-    
+        
     def __onbtn_copyJnt(self):
         for jntView in self.jntViews:
             jntView.copyq2cq()
@@ -191,8 +226,9 @@ class Debugger:
         self.jntFrame.propagate(False)
         self.tcpFrame = tk.Frame(self.window, relief=tk.GROOVE, bd=2)
         self.tcpFrame.propagate(False)
-        self.datalogFrame = tk.Frame(self.window, relief=tk.GROOVE, bd=2)
-        self.datalogFrame.propagate(False)
+        self.datalogFrame = DataLogView(self.window, self.state_)
+#        self.datalogFrame = tk.Frame(self.window, relief=tk.GROOVE, bd=2)
+#        self.datalogFrame.propagate(False)
         self.statusFrame = tk.Frame(self.window, relief=tk.GROOVE, bd=2)
         self.statusFrame.propagate(False)
 
@@ -200,8 +236,9 @@ class Debugger:
         self.jntFrame.grid(column=1, row=1)
         self.tcpFrame.grid(column=2, row=1)
         self.statusFrame.grid(column=1, row=2)
-        self.datalogFrame.grid(column=2, row=2)
-
+#        self.datalogFrame.grid(column=2, row=2)
+        self.datalogFrame.grid(2,2)
+        
         # Joint Widgets
         #JOINT_NUM = 7
         LABEL_WIDTH = 7
@@ -230,14 +267,22 @@ class Debugger:
             label.grid(column=i+1, row=titleRow)
 
         # Datalog Widgets
-        self.btn_startDataLog = tk.Button(self.datalogFrame, text="start", command=self.__onbtn_startDataLog)
-        self.btn_endDataLog = tk.Button(self.datalogFrame, text="end", command=self.__onbtn_endDataLog)
-        self.btn_showDataLog = tk.Button(self.datalogFrame, text="show", command=self.__onbtn_showDataLog)
-        rowNum = 0
-        self.btn_startDataLog.grid(column=1, row=rowNum)
-        self.btn_endDataLog.grid(column=2, row=rowNum)
-        self.btn_showDataLog.grid(column=3, row=rowNum)
-
+#        self.btn_startDataLog = tk.Button(self.datalogFrame, text="start", command=self.__onbtn_startDataLog)
+#        self.btn_endDataLog = tk.Button(self.datalogFrame, text="end", command=self.__onbtn_endDataLog)
+#        self.btn_showDataLog = tk.Button(self.datalogFrame, text="show", command=self.__onbtn_showDataLog)
+#        rowNum = 0
+#        self.btn_startDataLog.grid(column=1, row=rowNum)
+#        self.btn_endDataLog.grid(column=2, row=rowNum)
+#        self.btn_showDataLog.grid(column=3, row=rowNum)
+#        init_check_value = tk.BooleanVar(value = True) # set True as initial value
+#        rowNum = 1
+#        self.check_jointDataLog = tk.Checkbutton(self.datalogFrame, 
+#                           text = "joint",
+#                           command = self.__check_jointDataLog,
+#                           variable = init_check_value)
+#        self.btn_startDataLog.grid(column=1, row=rowNum)
+        
+        # PoseView
         rowNum : int = 1
         self.tcpView = PoseView(self.tcpFrame, 'tcp', rowNum, 'readonly')
         pose = Pose6d()
