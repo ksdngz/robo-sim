@@ -41,18 +41,25 @@ class JointState:
 class TcpState:
     def __init__(self):
         self.__pose = Pose6d()
-#        self.__pos : list[float] = [0.]*3
-#        self.__rot : list[float] = [0.]*3        
+        self.__cmdPose = Pose6d()
 
     def update(self, 
-               pose: Pose6d) -> None:
+               pose: Pose6d,
+               cmdPose: Pose6d) -> None:
         self.__pose = pose
+        self.__cmdPose = cmdPose
     
     def pose(self) -> Pose6d:
 #        pose : list[float] = []
 #        pose.extend(self.__pos)
 #        pose.extend(self.__rot)
         return self.__pose
+
+    def cmdPose(self) -> Pose6d:
+#        pose : list[float] = []
+#        pose.extend(self.__pos)
+#        pose.extend(self.__rot)
+        return self.__cmdPose
 
 class SimState:
     def __init__(self, qSize):
@@ -81,6 +88,9 @@ class SimState:
     def tcpPose(self) -> Pose6d:
         return self.__tcp.pose()
 
+    def tcpCmdPose(self) -> Pose6d:
+        return self.__tcp.cmdPose()
+
     def update(self, data, qcmd, dqcmd):
         self.__time = self.__time+1
         for i, jnt in enumerate(self.joints_):
@@ -89,11 +99,12 @@ class SimState:
         index_tcp = 7 # todo to be refactored
         qs : np.ndarray = np.deg2rad(np.array(self.qs())) #[rad]
         p : SE3 = rtb.forwardKin(qs) #[rad]
+        cmdPose : SE3 = rtb.forwardKin(qcmd) #[rad]
 #        p_eulzyx : np.ndarray = tr2rpy(p.R, unit='rad', order='zyx')
         #print("p_eulzyx", p_eulzyx)
 #        trans = [p.x, p.y, p.z]
 #       self.__tcp.update(trans, np.rad2deg(p_eulzyx)) # eul(zyx) [deg]        
-        self.__tcp.update(p)
+        self.__tcp.update(p, cmdPose)
 
         # to do change from quat to rpy
 #        rpy = [0]*3        
@@ -109,7 +120,10 @@ class SimState:
 #        angle = rot.as_euler('zyx', degrees=True)        
 #        angle = rot.as_euler('ZYX', degrees=True)        
 #        self.__tcp.update(data.xpos[index_tcp], angle)        
-        self.dataLogger.log(self.time(), self.qs(), self.qdots(), self.qcmds(), self.qdotcmds())        
+        self.dataLogger.log(
+            self.time(), 
+            self.qs(), self.qdots(), self.qcmds(), self.qdotcmds(), 
+            self.tcpPose().eul(), self.tcpPose().eul(), self.tcpCmdPose().eul(), self.tcpCmdPose().eul() ) #todo tcp cmd and vel        
 
     def startDataLog(self):
         DEFAULT_SIZE = 100

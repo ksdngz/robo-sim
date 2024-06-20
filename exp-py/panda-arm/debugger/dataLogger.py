@@ -11,6 +11,11 @@ class LogData:
         self.qcmdBuf = cm.RingBuffer(MAX_LOGGING_SIZE)
         self.qdcmdBuf = cm.RingBuffer(MAX_LOGGING_SIZE)
 
+        self.pBuf = cm.RingBuffer(MAX_LOGGING_SIZE)
+        self.pdBuf = cm.RingBuffer(MAX_LOGGING_SIZE)
+        self.pcmdBuf = cm.RingBuffer(MAX_LOGGING_SIZE)
+        self.pdcmdBuf = cm.RingBuffer(MAX_LOGGING_SIZE)
+
 class Graph:
     def __init__(self):
         return
@@ -25,7 +30,7 @@ class Graph:
         ax.legend(loc = 'upper right') 
         return ax
     
-    def show(self, data : LogData):
+    def jointShow(self, data : LogData):
         t = data.timeBuf.getList()
         qs = cm.transpose(data.qBuf.getList())
         qdots = cm.transpose(data.qdBuf.getList())
@@ -47,7 +52,34 @@ class Graph:
         plotCount = plotCount + len(qdots)
 
         fig.tight_layout()
-        plt.show()
+#        plt.show()
+
+    def tcpShow(self, data : LogData):
+        t = data.timeBuf.getList()
+        ps = cm.transpose(data.pBuf.getList())
+        pdots = cm.transpose(data.pdBuf.getList())
+        pcmds = cm.transpose(data.pcmdBuf.getList())
+        pdcmds = cm.transpose(data.pdcmdBuf.getList())
+        
+        # Figure construction        
+        fig = plt.figure(figsize = (22,5), facecolor='lightblue')
+        row = 2
+        col = max(len(ps), len(pdots))
+        plotCount = 0
+        # plot: p
+        cartesian_str = ['x','y','z','ro','pi','yo']
+        axs_q = [self.__addPlot(fig, [row,col, plotCount+i+1], t, ps[i], pcmds[i], c_str+' act pos', c_str+' cmd pos',
+                                sColor='blue', xLbl ='[cyc]', yLbl='[deg]') for i,c_str in enumerate(cartesian_str)]
+        plotCount = plotCount + len(ps)
+        # plot: pdot
+        axs_qdots = [self.__addPlot(fig, [row,col, plotCount+i+1], t, pdots[i], pdcmds[i], c_str+'act vel', c_str+'cmd vel',
+                                    sColor='green', xLbl ='[cyc]', yLbl='[deg/s]') for i,c_str in enumerate(cartesian_str)]
+        plotCount = plotCount + len(pdots)
+
+        fig.tight_layout()
+#        plt.show()
+
+
     
     def quickShow(xSeries,ySeries):
         plt.plot(xSeries, ySeries)
@@ -67,33 +99,54 @@ class DataLogger:
         # temp
         size = 100000
         self.__data.timeBuf = cm.RingBuffer(size)
+        self.__size = size
+        self.__enabled = True
+        # configuration space
         self.__data.qBuf = cm.RingBuffer(size)
         self.__data.qdBuf = cm.RingBuffer(size)
         self.__data.qcmdBuf = cm.RingBuffer(size)
         self.__data.qdcmdBuf = cm.RingBuffer(size)
-        self.__size = size
-        self.__enabled = True
+        # task space
+        self.__data.pBuf = cm.RingBuffer(size)
+        self.__data.pdBuf = cm.RingBuffer(size)
+        self.__data.pcmdBuf = cm.RingBuffer(size)
+        self.__data.pdcmdBuf = cm.RingBuffer(size)
 
-    def log(self, time, qs, qdots, qcmds, qdcmds):
+    def log(self, time,
+            qs, qdots, qcmds, qdcmds,
+            ps, pdots, pcmds, pdcmds):
         if self.__enabled:
             self.__data.timeBuf.add(time)    
+            # configuration space
             self.__data.qBuf.add(qs)    
             self.__data.qdBuf.add(qdots)    
             self.__data.qcmdBuf.add(qcmds)    
             self.__data.qdcmdBuf.add(qdcmds)    
+            # task space
+            self.__data.pBuf.add(ps)    
+            self.__data.pdBuf.add(pdots)    
+            self.__data.pcmdBuf.add(pcmds)    
+            self.__data.pdcmdBuf.add(pdcmds)    
 
     def endLog(self):
         self.__enabled = False
 
-    def getLog_q(self):
-        return self.__data.qBuf.getList()
+#    def getLog_q(self):
+#        return self.__data.qBuf.getList()
 
-    def getLog_qdot(self):
-        return self.__data.qdotBuf.getList()
+#    def getLog_qdot(self):
+#        return self.__data.qdotBuf.getList()
 
     def showLog(self):
-        g = Graph()
-        g.show(self.__data)
+        #g = Graph()
+        #g.jointShow(self.__data)
+        
+        #debug
+        g1 = Graph()
+        g1.tcpShow(self.__data)
+
+        plt.show()
+
 
 class JointState:
     def __init__(self):

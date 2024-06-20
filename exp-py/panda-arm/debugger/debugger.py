@@ -33,7 +33,9 @@ def getEntryValue(entry : tk.Entry) -> float:
     return float(s)
 
 class DataLogView:
-    def __init__(self, window: tk.Tk, state: ss.SimState):
+    def __init__(self, 
+                 window: tk.Tk, 
+                 state: ss.SimState):
         self.__frame = tk.Frame(window, relief=tk.GROOVE, bd=2)
         self.__state = state
         self.btn_startDataLog = tk.Button(self.__frame, text="start", command=self.__onbtn_startDataLog)
@@ -47,12 +49,6 @@ class DataLogView:
 
     def grid(self, col: int , row: int) -> None:
         self.__frame.grid(column=col, row=row)
-        rowNum = 0
-#        self.btn_startDataLog.grid(column=1, row=rowNum)
-#        self.btn_endDataLog.grid(column=2, row=rowNum)
-#        self.btn_showDataLog.grid(column=3, row=rowNum)
-        rowNum = 1
-#        self.btn_startDataLog.grid(column=1, row=2)
         self.check_jointDataLog.pack()
         self.btn_startDataLog.pack()
         self.btn_endDataLog.pack()
@@ -71,9 +67,6 @@ class DataLogView:
     
     def __checkJointLog(self) -> None:
         return
-        
-
-
 
 class JointView:
     def __init__(self, frame, name, rowNum, state, index):
