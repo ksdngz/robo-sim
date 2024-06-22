@@ -15,15 +15,18 @@ class LowLevelController:
 
 class PIDController(LowLevelController):
     def __init__(self, model, data, kp, kd, ki):
-        self.model = model
-        self.data = data
+        self.reset(model, data, kp, kd, ki)
+
+    def reset(self, model, data, kp, kd, ki):
+#        self.model = model
+#        self.data = data
         self.kp_ = kp
         self.kd_ = kd
         self.ki_ = ki
-        self.epre_ = [0]*self.model.nu
-        self.ie_ = [0]*self.model.nu
-        self.qcmd_ = [0]*self.model.nu #[rad]
-        self.qdcmd_ = [0]*self.model.nu #[rad/s]
+        self.epre_ = [0]*model.nu
+        self.ie_ = [0]*model.nu
+        self.qcmd_ = [0]*model.nu #[rad]
+        self.qdcmd_ = [0]*model.nu #[rad/s]
         self.T = 1
 
     def tick(self, model, data):

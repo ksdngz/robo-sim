@@ -2,7 +2,9 @@ import os
 import queue
 import control
 import threading
+import copy
 
+import toml
 import numpy as np
 import matplotlib.pyplot as plt
 import mujoco as mj
@@ -10,20 +12,21 @@ from mujoco.glfw import glfw
 
 from common import common_constants as const 
 from debugger import debugger as dbg
-from lowlevelcon import lowLevelController as llc
-from motioncon import motionController as mc
-from task import taskManager as tm
+#from lowlevelcon import lowLevelController as llc
+#from motioncon import motionController as mc
+#from task import taskManager as tm
+from robotcon import robotController as rc
 import simState as ss
 
-import copy
 
 # global settings
 np.set_printoptions(precision=2)
 
 #xml_path = '2D_double_pendulum.xml' #xml file (assumes this is in the same folder as this file)
 # xml_path = 'urdf/robot/panda_arm.urdf' #xml file (assumes this is in the same folder as this file)
-xml_path = 'urdf/robot/panda_arm_mjcf.xml' #xml file (assumes this is in the same folder as this file)
-
+CURRENT_FILE_PATH = os.path.dirname(__file__)
+PANDA_ARM_MJCF_PATH = 'urdf/robot/panda_arm_mjcf.xml' #xml file (assumes this is in the same folder as this file)
+PANDA_CONFIG_PATH = 'config/panda_config.toml'
 simend = 100 #simulation time
 print_camera_config = 0 #set to 1 to print camera config
                         #this is useful for initializing view of the model)
@@ -193,36 +196,51 @@ initq_deg = [0, 10, 0, -150, 0, 180, 0]
 initq =copy.copy(const.HOME_JOINTS)
 #print(np.rad2deg(initq))
 #get the full path
-dirname = os.path.dirname(__file__)
-abspath = os.path.join(dirname, xml_path)
-xml_path = abspath
+mjcf_path = os.path.join(CURRENT_FILE_PATH, PANDA_ARM_MJCF_PATH)
 
 # MuJoCo data structures
-model = mj.MjModel.from_xml_path(xml_path)  # MuJoCo model
+model = mj.MjModel.from_xml_path(mjcf_path)  # MuJoCo model
 #model = mj.MjModel.from_xml_string(xml_path)
 data = mj.MjData(model)                # MuJoCo data
 cam = mj.MjvCamera()                        # Abstract camera
 opt = mj.MjvOption()                        # visualization options
 
+# configuration
+config_path = os.path.join(CURRENT_FILE_PATH, PANDA_CONFIG_PATH)
+with open(config_path) as f:
+    obj = toml.load(f)
+    print(obj)
+
+pgain = obj['lowlevelcon']['pid']['pgain']
+igain = obj['lowlevelcon']['pid']['igain']
+dgain = obj['lowlevelcon']['pid']['dgain']
+#llc = obj['lowlevelcon']
+##llc.
+#llc = obj['lowlevelcon.pid.pgain'] 
+
+
 # Init Internal State
 simState = ss.SimState(model.nu)
 
+# Init RobotController
+robotCon: rc.RobotController = rc.simpleRobotController(model, data, simState)
+
 # Init lowLevelcontroller
 # kp = 20; kd = 0.5; ki = 0.1 # original
-kp = 100; kd = 0; ki = 0 # only K_p
-
-lowLevelCon = llc.PIDController(model, data, kp, kd, ki)
-lowLevelCon.update(initq)
-#mj.set_mjcb_control(lowLevelCon.controller)
-
-# Init MotionController
-motionCon = mc.MotionController(lowLevelCon)
-
-# Init TaskManager
-taskMgr = tm.TaskManager(simState, motionCon.getService())
+#kp = 100; kd = 0; ki = 0 # only K_p
+#
+#lowLevelCon = llc.PIDController(model, data, kp, kd, ki)
+#lowLevelCon.update(initq)
+##mj.set_mjcb_control(lowLevelCon.controller)
+#
+## Init MotionController
+#motionCon = mc.MotionController(lowLevelCon)
+#
+## Init TaskManager
+#taskMgr = tm.TaskManager(simState, motionCon.getService())
 
 # Init Debugger
-debugger = dbg.Debugger(simState, taskMgr.getService())
+debugger = dbg.Debugger(simState, robotCon.getTaskService())
 debuggerThread = threading.Thread(target=debugger.start)
 debuggerThread.start()
 
@@ -271,10 +289,11 @@ while not glfw.window_should_close(window):
 
     while (data.time - time_prev < 1.0/60.0):
         mj.mj_step(model, data)
-        simState.update(data, lowLevelCon.getCmdPos(), lowLevelCon.getCmdVel())
-        taskMgr.tick()
-        motionCon.tick(simState.controllerState)
-        lowLevelCon.tick(model, data)
+        simState.update(data, robotCon.getCmdPos(), robotCon.getCmdVel())
+        robotCon.tick(model, data, simState)
+#        taskMgr.tick()
+#        motionCon.tick(simState.controllerState)
+#        lowLevelCon.tick(model, data)
                 
 #    if (data.time>=simend):
 #        break

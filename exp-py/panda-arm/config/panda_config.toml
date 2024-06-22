@@ -1,0 +1,17 @@
+app = "panda_arm"
+version = "1.0"
+
+[lowlevelcon]
+env = "dev"
+    [lowlevelcon.pid]
+        pgain = 5000.0
+        igain = 5000.0
+        dgain = 5000.0
+    [lowlevelcon.pid2]
+        type = "pg"
+        host = "localhost"
+        port = 5432
+
+[master]
+account = "admin"
+password = "admin"

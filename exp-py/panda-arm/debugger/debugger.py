@@ -37,6 +37,8 @@ class DataLogView:
                  window: tk.Tk, 
                  state: ss.SimState):
         self.__frame = tk.Frame(window, relief=tk.GROOVE, bd=2)
+        self.__frame.grid(column=2, row=2)
+
         self.__state = state
         self.btn_startDataLog = tk.Button(self.__frame, text="start", command=self.__onbtn_startDataLog)
         self.btn_endDataLog = tk.Button(self.__frame, text="end", command=self.__onbtn_endDataLog)
@@ -154,62 +156,6 @@ class Debugger:
         self.__taskManagerService = taskManagerService
         self.__allJointsRequest = queue.Queue()
 
-    def update(self):
-        # joint
-        for i, jntView in enumerate(self.jntViews):
-            jntView.updateActValues(self.state_.joints_[i].q_, self.state_.joints_[i].dq_)
-            request = jntView.getRequest()
-            if request is not None:
-                self.__taskManagerService.pushRequest(request)
-
-        # all joints
-        if not self.__allJointsRequest.empty():
-            req = self.__allJointsRequest.get()
-            self.__taskManagerService.pushRequest(req)
-
-        # tcp view
-        self.tcpView.updateValues(self.state_.tcpPose())
-
-        # status view
-        updateEntryValueString(self.entry_movingState, self.state_.controllerState.motionState.name)
-        
-        # continuous gui update 
-        self.window.after(1000, self.update)
-        
-        
-    def __onbtn_copyJnt(self):
-        for jntView in self.jntViews:
-            jntView.copyq2cq()
-
-    def __onbtn_moveJntAll(self):
-        targets : list[tuple[int, float]] = [(jnt.jno, jnt.cq) for jnt in self.jntViews]
-        self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
-
-    def __onbtn_moveZero(self):
-        targets : list[tuple[int, float]] = [(i+1, np.rad2deg(j)) for i,j in enumerate(const.ZERO_JOINTS)]
-        self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
-
-    def __onbtn_moveHome(self):
-        hjoint = copy.copy(const.HOME_JOINTS)  
-        #hjoint = [0, -np.pi / 4, 0, -3 * np.pi / 4, 0, np.pi / 2, np.pi / 4]  
-        targets : list[tuple[int, float]] = [(i+1, np.rad2deg(j)) for i,j in enumerate(hjoint)]
-        self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
-
-    def __onbtn_copyTcp(self):
-        tcp : Pose6d = self.tcpView.getPose()
-        self.tcpCmdView.updateValues(tcp)
-
-    def __onbtn_moveJointAllTcpBase(self):
-        tcp = self.tcpCmdView.getPose()
-        self.__allJointsRequest.put(tr.MultiJointMoveTcpRequest(tcp))
-
-    def __onbtn_moveTcpStraight(self):
-        tcp = self.tcpCmdView.getPose()
-        self.__allJointsRequest.put(tr.TCPMoveStraightRequest(tcp))
-
-
-    def start(self):
-        self.running = True
         self.window = tk.Tk()
         self.window.title("Debugger")
         self.window.geometry('740x340')
@@ -230,8 +176,8 @@ class Debugger:
         self.tcpFrame.grid(column=2, row=1)
         self.statusFrame.grid(column=1, row=2)
 #        self.datalogFrame.grid(column=2, row=2)
-        self.datalogFrame.grid(2,2)
-        
+#        self.datalogFrame.grid(2,2)
+
         # Joint Widgets
         #JOINT_NUM = 7
         LABEL_WIDTH = 7
@@ -298,6 +244,65 @@ class Debugger:
         self.entry_movingState = tk.Entry(self.statusFrame, state="readonly", width=STATE_ENTRY_WIDTH)
         self.label_movingState.grid(column=1, row=1)
         self.entry_movingState.grid(column=2, row=1)
+
+    def update(self):
+        # joint
+        for i, jntView in enumerate(self.jntViews):
+            jntView.updateActValues(self.state_.joints_[i].q_, self.state_.joints_[i].dq_)
+            request = jntView.getRequest()
+            if request is not None:
+                self.__taskManagerService.pushRequest(request)
+
+        # all joints
+        if not self.__allJointsRequest.empty():
+            req = self.__allJointsRequest.get()
+            self.__taskManagerService.pushRequest(req)
+
+        # tcp view
+        self.tcpView.updateValues(self.state_.tcpPose())
+
+        # status view
+        updateEntryValueString(self.entry_movingState, self.state_.controllerState.motionState.name)
+        
+        # continuous gui update 
+        self.window.after(1000, self.update)
+        
+        
+    def __onbtn_copyJnt(self):
+        for jntView in self.jntViews:
+            jntView.copyq2cq()
+
+    def __onbtn_moveJntAll(self):
+        targets : list[tuple[int, float]] = [(jnt.jno, jnt.cq) for jnt in self.jntViews]
+        self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
+
+    def __onbtn_moveZero(self):
+        targets : list[tuple[int, float]] = [(i+1, np.rad2deg(j)) for i,j in enumerate(const.ZERO_JOINTS)]
+        self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
+
+    def __onbtn_moveHome(self):
+        hjoint = copy.copy(const.HOME_JOINTS)  
+        #hjoint = [0, -np.pi / 4, 0, -3 * np.pi / 4, 0, np.pi / 2, np.pi / 4]  
+        targets : list[tuple[int, float]] = [(i+1, np.rad2deg(j)) for i,j in enumerate(hjoint)]
+        self.__allJointsRequest.put(tr.MultiJointMoveRequest(targets))
+
+    def __onbtn_copyTcp(self):
+        tcp : Pose6d = self.tcpView.getPose()
+        self.tcpCmdView.updateValues(tcp)
+
+    def __onbtn_moveJointAllTcpBase(self):
+        tcp = self.tcpCmdView.getPose()
+        self.__allJointsRequest.put(tr.MultiJointMoveTcpRequest(tcp))
+
+    def __onbtn_moveTcpStraight(self):
+        tcp = self.tcpCmdView.getPose()
+        self.__allJointsRequest.put(tr.TCPMoveStraightRequest(tcp))
+
+
+    def start(self):
+        self.running = True
+        
+
         
         # Widget
         self.update()
