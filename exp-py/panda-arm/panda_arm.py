@@ -205,18 +205,6 @@ data = mj.MjData(model)                # MuJoCo data
 cam = mj.MjvCamera()                        # Abstract camera
 opt = mj.MjvOption()                        # visualization options
 
-# configuration
-config_path = os.path.join(CURRENT_FILE_PATH, PANDA_CONFIG_PATH)
-with open(config_path) as f:
-    obj = toml.load(f)
-    print(obj)
-
-pgain = obj['lowlevelcon']['pid']['pgain']
-igain = obj['lowlevelcon']['pid']['igain']
-dgain = obj['lowlevelcon']['pid']['dgain']
-#llc = obj['lowlevelcon']
-##llc.
-#llc = obj['lowlevelcon.pid.pgain'] 
 
 
 # Init Internal State
@@ -224,6 +212,12 @@ simState = ss.SimState(model.nu)
 
 # Init RobotController
 robotCon: rc.RobotController = rc.simpleRobotController(model, data, simState)
+
+# Load RobotController
+# configuration
+robotcon_config_path = os.path.join(CURRENT_FILE_PATH, PANDA_CONFIG_PATH)
+robotCon.load(robotcon_config_path, model, data)
+
 
 # Init lowLevelcontroller
 # kp = 20; kd = 0.5; ki = 0.1 # original

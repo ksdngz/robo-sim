@@ -1,5 +1,5 @@
 import copy
-
+import toml
 import mujoco as mj
 
 from common import common_constants as const 
@@ -9,7 +9,7 @@ from task import taskManager as tm
 import simState as ss
 
 class RobotController:
-    def tick(self, model, data):
+    def tick(self, model, data, simState):
         print('Error: superClass method is called.')
         assert()
 
@@ -50,8 +50,16 @@ class simpleRobotController(RobotController):
         self.__motionCon.tick(simState.controllerState)
         self.__lowLevelCon.tick(model, data)
 
-    def load(self, model, data):
-        return 
+    def load(self, configPath: str, model, data):
+        with open(configPath) as f:
+            obj = toml.load(f)
+            print(obj)
+
+        # lowlevelcon
+        kp = obj['lowlevelcon']['pid']['pgain']
+        kd = obj['lowlevelcon']['pid']['igain']
+        ki = obj['lowlevelcon']['pid']['dgain']
+        self.__lowLevelCon.reset(model, data, kp, kd, ki)
 
     def unload(self, qcmd):
         return 
