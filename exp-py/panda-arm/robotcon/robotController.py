@@ -13,7 +13,7 @@ class RobotController:
         print('Error: superClass method is called.')
         assert()
 
-    def load(self, targetPos): # todo
+    def load(self, configPath: str, model, data): # todo
         print('Error: superClass method is called.')
         assert()
     
@@ -53,15 +53,18 @@ class simpleRobotController(RobotController):
     def load(self, configPath: str, model, data):
         with open(configPath) as f:
             obj = toml.load(f)
-            print(obj)
+            #print(obj)
 
         # lowlevelcon
-        kp = obj['lowlevelcon']['pid']['pgain']
-        kd = obj['lowlevelcon']['pid']['igain']
-        ki = obj['lowlevelcon']['pid']['dgain']
-        self.__lowLevelCon.reset(model, data, kp, kd, ki)
+        kp: float = obj['lowlevelcon']['pid']['pgain']
+        kd: float = obj['lowlevelcon']['pid']['igain']
+        ki: float = obj['lowlevelcon']['pid']['dgain']
 
-    def unload(self, qcmd):
+        self.__lowLevelCon.reset(model, data, kp, kd, ki)
+        initq = copy.copy(const.HOME_JOINTS)
+        self.__lowLevelCon.update(initq)
+
+    def unload(self):
         return 
 
     #to be refactored
