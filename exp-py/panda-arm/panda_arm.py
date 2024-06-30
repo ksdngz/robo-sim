@@ -25,8 +25,8 @@ np.set_printoptions(precision=2)
 #xml_path = '2D_double_pendulum.xml' #xml file (assumes this is in the same folder as this file)
 # xml_path = 'urdf/robot/panda_arm.urdf' #xml file (assumes this is in the same folder as this file)
 CURRENT_FILE_PATH = os.path.dirname(__file__)
-PANDA_ARM_MJCF_PATH = 'urdf/robot/panda_arm_mjcf.xml' #xml file (assumes this is in the same folder as this file)
-PANDA_CONFIG_PATH = 'config/panda_config.toml'
+#PANDA_ARM_MJCF_PATH = 'urdf/robot/panda_arm_mjcf.xml' #xml file (assumes this is in the same folder as this file)
+#PANDA_CONFIG_PATH = 'config/panda_config.toml'
 simend = 100 #simulation time
 print_camera_config = 0 #set to 1 to print camera config
                         #this is useful for initializing view of the model)
@@ -196,7 +196,7 @@ initq_deg = [0, 10, 0, -150, 0, 180, 0]
 initq =copy.copy(const.HOME_JOINTS)
 #print(np.rad2deg(initq))
 #get the full path
-mjcf_path = os.path.join(CURRENT_FILE_PATH, PANDA_ARM_MJCF_PATH)
+mjcf_path = os.path.join(CURRENT_FILE_PATH, const.PANDA_ARM_MJCF_PATH)
 
 # MuJoCo data structures
 model = mj.MjModel.from_xml_path(mjcf_path)  # MuJoCo model
@@ -211,13 +211,13 @@ opt = mj.MjvOption()                        # visualization options
 simState = ss.SimState(model.nu)
 
 # Init RobotController
-robotCon: rc.RobotController = rc.simpleRobotController(model, data, simState)
+robotcon_config_path = os.path.join(CURRENT_FILE_PATH, const.DEFAULT_ROOT_CONFIG_PATH)
+robotCon: rc.RobotController = rc.simpleRobotController(robotcon_config_path, model, data, simState)
 
 # Load RobotController
 # configuration
-robotcon_config_path = os.path.join(CURRENT_FILE_PATH, PANDA_CONFIG_PATH)
-robotCon.load(robotcon_config_path, model, data)
-
+isInitCmdPos = True
+robotCon.load(model, data, isInitCmdPos)
 
 # Init lowLevelcontroller
 # kp = 20; kd = 0.5; ki = 0.1 # original
@@ -234,7 +234,7 @@ robotCon.load(robotcon_config_path, model, data)
 #taskMgr = tm.TaskManager(simState, motionCon.getService())
 
 # Init Debugger
-debugger = dbg.Debugger(simState, robotCon.getTaskService())
+debugger = dbg.Debugger(simState, robotCon.getRobotControllerService(), robotCon.getTaskService())
 debuggerThread = threading.Thread(target=debugger.start)
 debuggerThread.start()
 

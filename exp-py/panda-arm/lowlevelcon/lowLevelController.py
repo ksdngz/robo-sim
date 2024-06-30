@@ -13,6 +13,12 @@ class LowLevelController:
         print('Error: superClass method is called.')
         assert()
 
+    # to be refactored
+    def load(self, kp, kd, ki):
+        print('Error: superClass method is called.')
+        assert()
+
+    # to be refactored
     def reset(self, model, data, kp, kd, ki):
         print('Error: superClass method is called.')
         assert()
@@ -20,6 +26,11 @@ class LowLevelController:
 class PIDController(LowLevelController):
     def __init__(self, model, data, kp, kd, ki):
         self.reset(model, data, kp, kd, ki)
+
+    def load(self, kp, kd, ki):
+        self.kp_ = kp
+        self.kd_ = kd
+        self.ki_ = ki
 
     def reset(self, model, data, kp, kd, ki):
         self.kp_ = kp

@@ -3,10 +3,12 @@ import numpy as np
 import tkinter as tk
 from common import common as com
 from common import common_constants as const
+from common.pose6d import Pose6d
 import simState as ss
+from robotcon import robotControllerRequest as rcr
+from robotcon import robotControllerService as rcs
 from task import taskRequest as tr
 from task import taskManagerService as tms
-from common.pose6d import Pose6d
 
 import copy
 
@@ -149,12 +151,22 @@ class PoseView:
 class Debugger:
     def __init__(self, 
                  state: ss.SimState, 
-                 taskManagerService : tms.TaskManagerService):
+                 robotControllerService: rcs.RobotControllerService,
+                 taskManagerService: tms.TaskManagerService):
         self.state_ = state
+        # robotController
+        self.__robotControllerService = robotControllerService
+        self.__robotconRequest = queue.Queue()
+        # taskManager
         self.__taskManagerService = taskManagerService
         self.__allJointsRequest = queue.Queue()
 
     def update(self):
+        # robotcon
+        if not self.__robotconRequest.empty():
+            req = self.__robotconRequest.get()
+            self.__robotControllerService.pushRequest(req)
+        
         # joint
         for i, jntView in enumerate(self.jntViews):
             jntView.updateActValues(self.state_.joints_[i].q_, self.state_.joints_[i].dq_)
@@ -176,6 +188,8 @@ class Debugger:
         # continuous gui update 
         self.window.after(1000, self.update)
         
+    def __onbtn_loadConfig(self):
+        self.__robotconRequest.put(rcr.LoadRequest())
         
     def __onbtn_copyJnt(self):
         for jntView in self.jntViews:
@@ -224,6 +238,8 @@ class Debugger:
 #        self.datalogFrame.propagate(False)
         self.statusFrame = tk.Frame(self.window, relief=tk.GROOVE, bd=2)
         self.statusFrame.propagate(False)
+        self.commonFrame = tk.Frame(self.window, relief=tk.GROOVE, bd=2)
+        self.commonFrame.propagate(False)
 
         # frame layout
         self.jntFrame.grid(column=1, row=1)
@@ -231,6 +247,7 @@ class Debugger:
         self.statusFrame.grid(column=1, row=2)
 #        self.datalogFrame.grid(column=2, row=2)
         self.datalogFrame.grid(2,2)
+        self.commonFrame.grid(column=1, row=3)
         
         # Joint Widgets
         #JOINT_NUM = 7
@@ -298,6 +315,10 @@ class Debugger:
         self.entry_movingState = tk.Entry(self.statusFrame, state="readonly", width=STATE_ENTRY_WIDTH)
         self.label_movingState.grid(column=1, row=1)
         self.entry_movingState.grid(column=2, row=1)
+        
+        # common Widgets        
+        self.btn_load = tk.Button(self.commonFrame, text="load", command=self.__onbtn_loadConfig)
+        self.btn_load.grid(column=1, row=8)
         
         # Widget
         self.update()

@@ -3,6 +3,7 @@ import toml
 import mujoco as mj
 
 from common import common_constants as const 
+from robotcon import robotControllerService as rcs
 from lowlevelcon import lowLevelController as llc
 from motioncon import motionController as mc
 from task import taskManager as tm
@@ -21,6 +22,10 @@ class RobotController:
         print('Error: superClass method is called.')
         assert()
     
+    def getRobotControllerService(self) -> rcs.RobotControllerService: 
+        print('Error: superClass method is called.')
+        assert()
+
     #to be refactored
     def getTaskService(self) -> tm.tms.TaskManagerService: 
         print('Error: superClass method is called.')
@@ -37,7 +42,9 @@ class RobotController:
         assert()
 
 class simpleRobotController(RobotController):
-    def __init__(self, model, data, simState):
+    def __init__(self, configPath: str, model, data, simState):
+        self.__configPath = configPath
+        self.__robotControllerService = rcs.RobotControllerService()
         initq = copy.copy(const.HOME_JOINTS)
         kp = 100; kd = 0; ki = 0 # only K_p
         self.__lowLevelCon = llc.PIDController(model, data, kp, kd, ki)
@@ -45,13 +52,29 @@ class simpleRobotController(RobotController):
         self.__motionCon = mc.MotionController(self.__lowLevelCon)
         self.__taskMgr = tm.TaskManager(simState, self.__motionCon.getService())
 
+    def processRequest(self, model, data):
+        if self.__robotControllerService.hasRequest():
+            req : rcs.rcr.RobotControllerRequest = self.__robotControllerService.popRequest()
+            type : rcs.rcr.RobotControllerRequestType =  req.getType()
+            args = req.getArgs()
+            if type ==rcs.rcr.RobotControllerRequestType.LOAD:
+                config: str = args.get() # not used at this moment
+                self.load(model, data)                
+            else:
+                print('Error: Not defined taskRequest was pushed.')
+                assert()
+
     def tick(self, model, data, simState):
+        self.processRequest(model, data)
         self.__taskMgr.tick()
         self.__motionCon.tick(simState.controllerState)
         self.__lowLevelCon.tick(model, data)
 
-    def load(self, configPath: str, model, data):
-        with open(configPath) as f:
+    def load(self,
+             model, 
+             data,
+             isInitCmdPos: bool = False):
+        with open(self.__configPath) as f:
             obj = toml.load(f)
             #print(obj)
 
@@ -60,12 +83,16 @@ class simpleRobotController(RobotController):
         kd: float = obj['lowlevelcon']['pid']['igain']
         ki: float = obj['lowlevelcon']['pid']['dgain']
 
-        self.__lowLevelCon.reset(model, data, kp, kd, ki)
-        initq = copy.copy(const.HOME_JOINTS)
-        self.__lowLevelCon.update(initq)
+        self.__lowLevelCon.load(kp, kd, ki)
+        if isInitCmdPos is True:
+            initq = copy.copy(const.HOME_JOINTS)
+            self.__lowLevelCon.update(initq)
 
     def unload(self):
         return 
+
+    def getRobotControllerService(self) -> rcs.RobotControllerService: 
+        return self.__robotControllerService
 
     #to be refactored
     def getTaskService(self) -> tm.tms.TaskManagerService: 
