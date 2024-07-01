@@ -243,9 +243,6 @@ isInitCmdPos = True
 robotCon.load(model, data, isInitCmdPos)
 
 # Init lowLevelcontroller
-# kp = 20; kd = 0.5; ki = 0.1 # original
-#kp = 100; kd = 0; ki = 0 # only K_p
-#
 #lowLevelCon = llc.PIDController(model, data, kp, kd, ki)
 #lowLevelCon.update(initq)
 ##mj.set_mjcb_control(lowLevelCon.controller)
