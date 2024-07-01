@@ -138,12 +138,12 @@ class DataLogger:
 #        return self.__data.qdotBuf.getList()
 
     def showLog(self):
-        #g = Graph()
-        #g.jointShow(self.__data)
+        g = Graph()
+        g.jointShow(self.__data)
         
         #debug
-        g1 = Graph()
-        g1.tcpShow(self.__data)
+#        g1 = Graph()
+#        g1.tcpShow(self.__data)
 
         plt.show()
 

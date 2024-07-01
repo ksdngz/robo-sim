@@ -4,9 +4,9 @@ version = "1.0"
 [lowlevelcon]
 env = "dev"
     [lowlevelcon.pid]
-        pgain = 100.0
+        pgain = 200.0
         igain = 0.0
-        dgain = 0.0
+        dgain = 1.0
     [lowlevelcon.pid2]
         type = "pg"
         host = "localhost"

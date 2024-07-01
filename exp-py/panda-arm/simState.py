@@ -5,6 +5,7 @@ import debugger.dataLogger as dl
 from external import rtbWrapper as rtb
 from spatialmath import SE3
 from spatialmath.base import tr2rpy, rpy2tr
+from common import time_recorder as tr
 from common.pose6d import Pose6d
 
 class MotionState(Enum):
@@ -91,6 +92,7 @@ class SimState:
     def tcpCmdPose(self) -> Pose6d:
         return self.__tcp.cmdPose()
 
+    @tr.time_recorder(__qualname__)
     def update(self, data, qcmd, dqcmd):
         self.__time = self.__time+1
         for i, jnt in enumerate(self.joints_):
@@ -100,6 +102,7 @@ class SimState:
         qs : np.ndarray = np.deg2rad(np.array(self.qs())) #[rad]
         p : SE3 = rtb.forwardKin(qs) #[rad]
         cmdPose : SE3 = rtb.forwardKin(qcmd) #[rad]
+
 #        p_eulzyx : np.ndarray = tr2rpy(p.R, unit='rad', order='zyx')
         #print("p_eulzyx", p_eulzyx)
 #        trans = [p.x, p.y, p.z]

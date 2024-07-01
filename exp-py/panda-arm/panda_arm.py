@@ -11,13 +11,13 @@ import mujoco as mj
 from mujoco.glfw import glfw
 
 from common import common_constants as const 
+from common import time_recorder as tr
 from debugger import debugger as dbg
 #from lowlevelcon import lowLevelController as llc
 #from motioncon import motionController as mc
 #from task import taskManager as tm
 from robotcon import robotController as rc
 import simState as ss
-
 
 # global settings
 np.set_printoptions(precision=2)
@@ -187,6 +187,29 @@ def scroll(window, xoffset, yoffset):
     mj.mjv_moveCamera(model, action, 0.0, -0.05 *
                       yoffset, scene, cam)
 
+@tr.time_recorder("mujocoViewer")
+def updateViewer(window, model, data, opt, cam, scene, context):
+    # get framebuffer viewport
+    viewport_width, viewport_height = glfw.get_framebuffer_size(
+        window)
+    viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
+
+    #print camera configuration (help to initialize the view)
+    #if (print_camera_config==1):
+    #    print('cam.azimuth =',cam.azimuth,';','cam.elevation =',cam.elevation,';','cam.distance = ',cam.distance)
+    #    print('cam.lookat =np.array([',cam.lookat[0],',',cam.lookat[1],',',cam.lookat[2],'])')    
+
+    # Update scene and render
+    mj.mjv_updateScene(model, data, opt, None, cam,
+                       mj.mjtCatBit.mjCAT_ALL.value, scene)
+    mj.mjr_render(viewport, scene, context)
+
+    # swap OpenGL buffers (blocking call due to v-sync)
+    glfw.swap_buffers(window)
+
+    # process pending GUI events, call GLFW callbacks
+    glfw.poll_events()
+
 # definition
 global gCount
 gCount = 0
@@ -291,26 +314,27 @@ while not glfw.window_should_close(window):
                 
 #    if (data.time>=simend):
 #        break
+    updateViewer(window, model, data, opt, cam, scene, context)
 
-    # get framebuffer viewport
-    viewport_width, viewport_height = glfw.get_framebuffer_size(
-        window)
-    viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
-
-    #print camera configuration (help to initialize the view)
-    #if (print_camera_config==1):
-    #    print('cam.azimuth =',cam.azimuth,';','cam.elevation =',cam.elevation,';','cam.distance = ',cam.distance)
-    #    print('cam.lookat =np.array([',cam.lookat[0],',',cam.lookat[1],',',cam.lookat[2],'])')    
-
-    # Update scene and render
-    mj.mjv_updateScene(model, data, opt, None, cam,
-                       mj.mjtCatBit.mjCAT_ALL.value, scene)
-    mj.mjr_render(viewport, scene, context)
-
-    # swap OpenGL buffers (blocking call due to v-sync)
-    glfw.swap_buffers(window)
-
-    # process pending GUI events, call GLFW callbacks
-    glfw.poll_events()
+#    # get framebuffer viewport
+#    viewport_width, viewport_height = glfw.get_framebuffer_size(
+#        window)
+#    viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
+#
+#    #print camera configuration (help to initialize the view)
+#    #if (print_camera_config==1):
+#    #    print('cam.azimuth =',cam.azimuth,';','cam.elevation =',cam.elevation,';','cam.distance = ',cam.distance)
+#    #    print('cam.lookat =np.array([',cam.lookat[0],',',cam.lookat[1],',',cam.lookat[2],'])')    
+#
+#    # Update scene and render
+#    mj.mjv_updateScene(model, data, opt, None, cam,
+#                       mj.mjtCatBit.mjCAT_ALL.value, scene)
+#    mj.mjr_render(viewport, scene, context)
+#
+#    # swap OpenGL buffers (blocking call due to v-sync)
+#    glfw.swap_buffers(window)
+#
+#    # process pending GUI events, call GLFW callbacks
+#    glfw.poll_events()
 
 glfw.terminate()

@@ -3,6 +3,7 @@ import toml
 import mujoco as mj
 
 from common import common_constants as const 
+from common import time_recorder as tr
 from robotcon import robotControllerService as rcs
 from lowlevelcon import lowLevelController as llc
 from motioncon import motionController as mc
@@ -64,6 +65,7 @@ class simpleRobotController(RobotController):
                 print('Error: Not defined taskRequest was pushed.')
                 assert()
 
+    @tr.time_recorder(__qualname__)
     def tick(self, model, data, simState):
         self.processRequest(model, data)
         self.__taskMgr.tick()
