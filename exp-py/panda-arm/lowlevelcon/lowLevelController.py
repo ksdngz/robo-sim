@@ -40,7 +40,8 @@ class PIDController(LowLevelController):
         self.ie_ = [0]*model.nu
         self.qcmd_ = [0]*model.nu #[rad]
         self.qdcmd_ = [0]*model.nu #[rad/s]
-        self.T = 1
+        DEFAULT_TIME_STEP = 0.008 # to be refactored
+        self.T = DEFAULT_TIME_STEP
 
 #    def reset2(self, model, data, kp, kd, ki):
 #        self.kp_ = kp
@@ -60,6 +61,8 @@ class PIDController(LowLevelController):
         u = self.kp_*e + self.kd_*de + self.ki_*self.ie_ + gc
         ## set ctrl in mujoco
         data.ctrl = u
+        # update the values of previous cycle
+        self.epre_ = e
 
     def update(self, qcmd):
         for i in range(len(self.qcmd_)):
