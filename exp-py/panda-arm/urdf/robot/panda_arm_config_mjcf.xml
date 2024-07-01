@@ -1,4 +1,5 @@
 <mujoco>
+  <option timestep="0.008"/>
   <actuator>
     <motor name="motor1" joint="panda_joint1" gear="1"/>
     <motor name="motor2" joint="panda_joint2" gear="1"/>
