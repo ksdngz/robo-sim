@@ -5,7 +5,7 @@ from task import taskManagerService as tms
 from motioncon import motionControllerService as mcs
 from planner import trajectoryProfiler as trajprof
 import simState as ss
-from external import rtbWrapper as rtb
+from external.kinetics import Kinematics as kin
 from common import common_constants
 from common.pose6d import Pose6d
 
@@ -51,7 +51,7 @@ class TaskManager:
             elif type == tms.tr.TaskRequestType.MULTI_JOINT_MOVE_TCP:
                 target : Pose6d = args.get()
                 q0 : np.ndarray = np.array(np.deg2rad(self.__simState.qs())) # [rad]
-                q : np.ndarray = rtb.inverseKin(target, q0) # [rad]
+                q : np.ndarray = kin.inverseKin(target, q0) # [rad]
                 jntTarget : list[float] = np.rad2deg(q) #[deg]
                 jnos = list(range(1,8)) # todo
                 targets : list[tuple[int, float]] = []
@@ -72,7 +72,7 @@ class TaskManager:
                 while not tcpTraj.isEmpty():
                     tcpPoint : mcs.mr.mo.Point = tcpTraj.pop()
                     ps = Pose6d(tcpPoint.ps) # tcpPoint.ps[rad]
-                    q : np.ndarray = rtb.inverseKin(ps, q0) # [rad]                   
+                    q : np.ndarray = kin.inverseKin(ps, q0) # [rad]                   
                     qtraj.push(mcs.mr.mo.Point(tcpPoint.time, q))
                     q0 = q
                     

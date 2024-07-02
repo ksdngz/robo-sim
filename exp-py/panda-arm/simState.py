@@ -2,7 +2,7 @@ from enum import Enum
 import numpy as np
 from scipy.spatial.transform import Rotation
 import debugger.dataLogger as dl
-from external import rtbWrapper as rtb
+from external.kinetics import Kinematics as kin
 from spatialmath import SE3
 from spatialmath.base import tr2rpy, rpy2tr
 from common import time_recorder as tr
@@ -100,8 +100,8 @@ class SimState:
         #index_tcp = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, 'panda_link7')
         index_tcp = 7 # todo to be refactored
         qs : np.ndarray = np.deg2rad(np.array(self.qs())) #[rad]
-        p : SE3 = rtb.forwardKin(qs) #[rad]
-        cmdPose : SE3 = rtb.forwardKin(qcmd) #[rad]
+        p : SE3 = kin.forwardKin(qs) #[rad]
+        cmdPose : SE3 = kin.forwardKin(qcmd) #[rad]
 
 #        p_eulzyx : np.ndarray = tr2rpy(p.R, unit='rad', order='zyx')
         #print("p_eulzyx", p_eulzyx)

@@ -1,4 +1,4 @@
-import external.rtbWrapper as rtb
+from external.kinetics import Dynamics as dyn
 
 class LowLevelController:
     def tick(self, model, data):
@@ -54,7 +54,7 @@ class PIDController(LowLevelController):
 #        self.T = 1
 
     def tick(self, model, data):
-        gc = rtb.calcGravComp(data.qpos)
+        gc = dyn.calcGravComp(data.qpos)
         e = self.qcmd_ - data.qpos
         de = (e - self.epre_)/self.T
         self.ie_ = self.ie_ + (e+de)*self.T/2
