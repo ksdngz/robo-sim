@@ -43,16 +43,6 @@ class PIDController(LowLevelController):
         DEFAULT_TIME_STEP = 0.008 # to be refactored
         self.T = DEFAULT_TIME_STEP
 
-#    def reset2(self, model, data, kp, kd, ki):
-#        self.kp_ = kp
-#        self.kd_ = kd
-#        self.ki_ = ki
-#        self.epre_ = [0]*model.nu
-#        self.ie_ = [0]*model.nu
-#        self.qcmd_ = [0]*model.nu #[rad]
-#        self.qdcmd_ = [0]*model.nu #[rad/s]
-#        self.T = 1
-
     def tick(self, model, data):
         gc = dyn.calcGravComp(data.qpos)
         e = self.qcmd_ - data.qpos
