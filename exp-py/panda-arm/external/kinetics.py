@@ -11,6 +11,9 @@ class Kinematics:
         q0 : np.ndarray) -> np.ndarray: #[rad] -> [rad]
         return rtb.inverseKin(p, q0)
 
+    def calcJacob(q : np.ndarray) -> np.ndarray:
+        return rtb.calcJacob(q)
+
 class Dynamics:
     def calcGravComp(q : np.ndarray) -> np.ndarray:
         return rtb.calcGravComp(q)

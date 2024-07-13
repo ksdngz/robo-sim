@@ -18,6 +18,11 @@ def calcGravComp(q : np.ndarray) -> np.ndarray:
     g = robot.gravload(q)
     return g
 
+def calcJacob(q : np.ndarray) -> np.ndarray:
+    # Manipulator Jacobian in world frame
+    robot = rtb.models.DH.Panda()
+    return robot.jacob0(q)
+
 def inverseKin(
     p : Pose6d, #[rad]
     q0 : np.ndarray) -> np.ndarray: #[rad] -> [rad]
