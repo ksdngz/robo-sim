@@ -14,8 +14,12 @@ link_directories(${MUJOCO_ROOT}/lib)
 # Sample source
 add_executable(simple_sim samples/simple_sim.cpp)
 
-# Link MuJoCo library (update name if needed)
-target_link_libraries(simple_sim mujoco)
+
+# GLFW manual include/lib
+set(GLFW_ROOT "${CMAKE_SOURCE_DIR}/third_party/glfw")
+include_directories(${GLFW_ROOT}/include)
+# link_directoriesは省略
+target_link_libraries(simple_sim mujoco "${GLFW_ROOT}/lib/glfw3.lib")
 
 # For Windows: copy DLL to output dir after build
 if (WIN32)
