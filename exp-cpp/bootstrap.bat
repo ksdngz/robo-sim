@@ -1,4 +1,4 @@
-@echo off
+@echo on
 REM Bootstrap script: download MuJoCo and build with MSBuild and ClangCL (Visual Studio Generator)
 
 REM === Download MuJoCo (PowerShell) ===
