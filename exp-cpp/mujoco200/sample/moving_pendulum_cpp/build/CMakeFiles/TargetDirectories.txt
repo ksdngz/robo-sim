@@ -1,3 +1,0 @@
-/home/daimat/robo-sim/exp-cpp/mujoco/sample/moving_pendulum_cpp/build/CMakeFiles/rebuild_cache.dir
-/home/daimat/robo-sim/exp-cpp/mujoco/sample/moving_pendulum_cpp/build/CMakeFiles/edit_cache.dir
-/home/daimat/robo-sim/exp-cpp/mujoco/sample/moving_pendulum_cpp/build/CMakeFiles/moving-Pendulum.dir
