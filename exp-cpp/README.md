@@ -22,11 +22,18 @@ This project uses MuJoCo 3.3.5 for physics simulation. The MuJoCo binary is not 
    cd path\to\exp-cpp
    ```
 
-2. Create a build directory and run CMake:
+2. (Option) Build with MSBuild and Clang using the provided script:
+   ```powershell
+   scripts\build_clang_msbuild.bat
+   ```
+
+   This script will create the build directory, configure CMake with Visual Studio 17 2022 and ClangCL, and build the project automatically.
+
+3. (Manual) Create a build directory and run CMake (specifying Visual Studio 17 2022 as the generator):
    ```powershell
    mkdir build
    cd build
-   cmake ..
+   cmake -G "Visual Studio 17 2022" ..
    cmake --build .
    ```
 

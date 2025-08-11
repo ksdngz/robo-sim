@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(mujoco_sim_sample)
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # MuJoCo root directory (change if needed)
@@ -21,6 +21,6 @@ target_link_libraries(simple_sim mujoco)
 if (WIN32)
     add_custom_command(TARGET simple_sim POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${MUJOCO_ROOT}/bin/mujoco.dll"
+            "${MUJOCO_ROOT}/mujoco.dll"
             $<TARGET_FILE_DIR:simple_sim>)
 endif()
