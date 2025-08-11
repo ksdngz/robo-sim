@@ -15,7 +15,28 @@ This project uses MuJoCo 3.3.5 for physics simulation. The MuJoCo binary is not 
    ```
 
 
-## How to Build the Sample with CMake
+
+## How to Build and Setup with Bootstrap Scripts
+
+You can use the provided bootstrap scripts to automatically download MuJoCo and build the project with your preferred build system and compiler.
+
+### 1. Build with Ninja and Clang (default)
+In the `exp-cpp` directory, run:
+```powershell
+bootstrap.bat
+```
+This will download MuJoCo, configure CMake with Ninja and Clang, and build the project.
+
+### 2. Build with MSBuild and ClangCL (Visual Studio)
+In the `exp-cpp` directory, run:
+```powershell
+bootstrap_msbuild.bat
+```
+This will download MuJoCo, configure CMake with Visual Studio 17 2022 and ClangCL, and build the project.
+
+---
+
+## How to Build the Sample with CMake (Manual)
 
 1. Open a terminal and move to the `exp-cpp` directory:
    ```powershell
