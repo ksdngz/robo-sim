@@ -14,8 +14,8 @@ link_directories(${MUJOCO_ROOT}/lib)
 # Sample source
 set(SOURCES
     samples/simple_sim.cpp
-    samples/world_spline.cpp
-    samples/world_spline.hpp
+#    samples/world_spline.cpp
+#    samples/world_spline.hpp
 )
 
 add_executable(simple_sim ${SOURCES})
