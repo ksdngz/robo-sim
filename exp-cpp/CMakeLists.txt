@@ -12,13 +12,17 @@ include_directories(${MUJOCO_ROOT}/include)
 link_directories(${MUJOCO_ROOT}/lib)
 
 # Sample source
-add_executable(simple_sim samples/simple_sim.cpp)
+set(SOURCES
+    samples/simple_sim.cpp
+    samples/world_spline.cpp
+    samples/world_spline.hpp
+)
 
+add_executable(simple_sim ${SOURCES})
 
 # GLFW manual include/lib
 set(GLFW_ROOT "${CMAKE_SOURCE_DIR}/third_party/glfw")
 include_directories(${GLFW_ROOT}/include)
-# link_directoriesは省略
 target_link_libraries(simple_sim mujoco "${GLFW_ROOT}/lib/glfw3.lib")
 
 # For Windows: copy DLL to output dir after build
