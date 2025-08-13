@@ -46,18 +46,19 @@ int drawSph(
 		return EXIT_FAILURE;
 	}
 	mjvScene& scn(mj.scn);
-    mjvGeom *mygeom = scn.geoms + scn.ngeom;
-    // decor geom
-    mygeom->objtype = mjOBJ_UNKNOWN;
-    mygeom->objid = -1;
-    mygeom->category = mjCAT_DECOR;
-    mygeom->segid = scn.ngeom;
+    mjvGeom *g = scn.geoms + scn.ngeom;
+	memset(g, 0, sizeof(mjvGeom));
 
     // Add it to the scene
 	mjtNum sphsize[3] = {radius, 0, 0};
     mjtNum myrot3x3[9] = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
-    mjv_initGeom(mygeom, mjGEOM_SPHERE, sphsize, pt.data(), myrot3x3, rgba);
-    mjv_addGeoms(mj.m, mj.d, &mj.opt, NULL, mjCAT_DECOR, &scn);
+    mjv_initGeom(g, mjGEOM_SPHERE, sphsize, pt.data(), myrot3x3, rgba);
+    g->objtype = mjOBJ_UNKNOWN;
+    g->objid = -1;
+    g->category = mjCAT_DECOR;
+    g->segid = scn.ngeom;
+	strncpy_s(g->label, sizeof(g->label), "mySph1", _TRUNCATE);
+
 	scn.ngeom++;
 	return EXIT_SUCCESS;
 }
@@ -241,7 +242,8 @@ int main(int argc, const char** argv) {
                     float x, float y, float r, float g, float b);
 
 		*/
-
+		mj.opt.label = mjLABEL_GEOM;
+		mjv_addGeoms(mj.m, mj.d, &mj.opt, NULL, mjCAT_DECOR, &mj.scn);
 		mjr_render(viewport, &mj.scn, &mj.con);
 
 		// add text		
