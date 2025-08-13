@@ -4,6 +4,7 @@
 #include <cstring>
 #include <cmath>
 #include <array>
+#include <vector>
 #include <GLFW/glfw3.h>
 #include <mujoco/mujoco.h>
 
@@ -19,30 +20,67 @@ bool button_right = false;
 double lastx = 0;
 double lasty = 0;
 
+using Position = std::array<double, 3>;
+using WayPoints = std::vector<Position>;
 
-int addLine(
+int drawLine(
 	mjvScene& scn,
-	const std::array<double, 3>& from,
-	const std::array<double, 3>& to,
+	const Position& from,
+	const Position& to,
 	float rgba[4])
 {
-	mjvGeom* g = scn.geoms + scn.ngeom;
 	if ( scn.ngeom>=scn.maxgeom ) {
 		mj_warning(d, mjWARN_VGEOMFULL, scn.maxgeom);
 		return EXIT_FAILURE;
 	}
-	else {
-		memset(g, 0, sizeof(mjvGeom));
-		mjv_initGeom(g, mjGEOM_NONE, NULL, NULL, NULL, rgba);
-		g->objtype = mjOBJ_UNKNOWN;
-		g->objid = 0;
-		g->category = mjCAT_DECOR;
-		g->segid = scn.ngeom;
-		mjv_connector(g, mjGEOM_LINE, 0.05, from.data(), to.data());
-		scn.ngeom++;
-	}
+	mjvGeom* g = scn.geoms + scn.ngeom;
+	memset(g, 0, sizeof(mjvGeom));
+	mjv_initGeom(g, mjGEOM_NONE, NULL, NULL, NULL, rgba);
+	g->objtype = mjOBJ_UNKNOWN;
+	g->objid = 0;
+	g->category = mjCAT_DECOR;
+	g->segid = scn.ngeom;
+	mjv_connector(g, mjGEOM_LINE, 0.05, from.data(), to.data());
+	scn.ngeom++;
 	return EXIT_SUCCESS;
 }
+
+int drawSpline(
+	mjvScene& scn,
+	const WayPoints& wp,
+	float rgba[4]
+) {
+	if (wp.size() < 2) return EXIT_SUCCESS; // nothing to draw
+
+	// Catmull-Rom Spline: interpolate between wp[1] ... wp[N-2]
+	const int NUM_STEPS = 20; // number of segments per span
+	int err = EXIT_SUCCESS;
+	for (size_t i = 0; i + 1 < wp.size(); ++i) {
+		// For the first and last segment, duplicate endpoints for tangent
+		const Position& p0 = (i == 0) ? wp[0] : wp[i-1];
+		const Position& p1 = wp[i];
+		const Position& p2 = wp[i+1];
+		const Position& p3 = (i+2 < wp.size()) ? wp[i+2] : wp[wp.size()-1];
+
+		// Interpolate between p1 and p2
+		Position prev = p1;
+		for (int j = 1; j <= NUM_STEPS; ++j) {
+			double t = (double)j / NUM_STEPS;
+			// Catmull-Rom formula
+			Position pt;
+			for (int k = 0; k < 3; ++k) {
+				pt[k] = 0.5 * ((2.0 * p1[k]) +
+					(-p0[k] + p2[k]) * t +
+					(2.0*p0[k] - 5.0*p1[k] + 4.0*p2[k] - p3[k]) * t * t +
+					(-p0[k] + 3.0*p1[k] - 3.0*p2[k] + p3[k]) * t * t * t);
+			}
+			if (drawLine(scn, prev, pt, rgba) != EXIT_SUCCESS) err = EXIT_FAILURE;
+			prev = pt;
+		}
+	}
+	return err;
+}
+
 
 void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods) {
 	if (act==GLFW_PRESS && key==GLFW_KEY_BACKSPACE) {
@@ -134,10 +172,12 @@ int main(int argc, const char** argv) {
 		mjv_updateScene(m, d, &opt, NULL, &cam, mjCAT_ALL, &scn);
 
 		// add line
-		std::array<double, 3> from = {0.0, 0.0, 0.0};
-		std::array<double, 3> to = {1.0, 0.5, 0.2};
+		WayPoints wp = {
+			{0.0, 0.0, 0.0},
+			{1.0, 0.0, 0.0},
+			{1.0, 0.5, 0.2}};
 		float rgba[4] = {1.f, 0.f, 1.f, 0.9f};
-		int errCode = addLine(scn, from, to, rgba);
+		int errCode = drawSpline(scn, wp, rgba);
 		if (errCode != EXIT_SUCCESS){
 		  return errCode;
 		}
