@@ -8,6 +8,14 @@
 #include <GLFW/glfw3.h>
 #include <mujoco/mujoco.h>
 
+using Position = std::array<double, 3>;
+using WayPoints = std::vector<Position>;
+const float CLR_RED[4] = {1.f, 0.f, 0.f, 1.f};
+const float CLR_GREEN[4] = {0.f, 1.f, 0.f, 1.f};
+const float CLR_BLUE[4] = {0.f, 0.f, 1.f, 1.f};
+const float CLR_PURPLE[4] = {1.f, 0.f, 1.f, 1.f};
+const float CLR_YELLOW[4] = {1.f, 1.f, 0.f, 1.f};
+const double RADIUS_SPH = 0.03;
 
 class MjSim
 {
@@ -27,26 +35,17 @@ public:
 };
 MjSim mj;
 
-using Position = std::array<double, 3>;
-using WayPoints = std::vector<Position>;
-
-void drawSph(
+int drawSph(
 	MjSim& mj,
 	const Position& pt,
 	double radius,
-	float rgba[4])
+	const float rgba[4])
 { 
+	if ( mj.scn.ngeom>=mj.scn.maxgeom ) {
+		mj_warning(mj.d, mjWARN_VGEOMFULL, mj.scn.maxgeom);
+		return EXIT_FAILURE;
+	}
 	mjvScene& scn(mj.scn);
-    // add a decorative geometry
-    mjtNum sphsize[3] = {radius, 0, 0};
-//    mjtNum sphpos[3] = {0., 0., 0.};
-    mjtNum myrot3x3[9] = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
-
-//    mju_copy3(sphpos, pt);
-
-    // one more geom to render
-    //scn.ngeom = scn.ngeom + 1;
-    // mygeom now points to the last location in geoms buffer
     mjvGeom *mygeom = scn.geoms + scn.ngeom;
     // decor geom
     mygeom->objtype = mjOBJ_UNKNOWN;
@@ -55,16 +54,19 @@ void drawSph(
     mygeom->segid = scn.ngeom;
 
     // Add it to the scene
+	mjtNum sphsize[3] = {radius, 0, 0};
+    mjtNum myrot3x3[9] = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
     mjv_initGeom(mygeom, mjGEOM_SPHERE, sphsize, pt.data(), myrot3x3, rgba);
     mjv_addGeoms(mj.m, mj.d, &mj.opt, NULL, mjCAT_DECOR, &scn);
 	scn.ngeom++;
+	return EXIT_SUCCESS;
 }
 
 int drawLine(
 	MjSim& mj,
 	const Position& from,
 	const Position& to,
-	float rgba[4])
+	const float rgba[4])
 {
 	if ( mj.scn.ngeom>=mj.scn.maxgeom ) {
 		mj_warning(mj.d, mjWARN_VGEOMFULL, mj.scn.maxgeom);
@@ -74,7 +76,7 @@ int drawLine(
 	memset(g, 0, sizeof(mjvGeom));
 	mjv_initGeom(g, mjGEOM_NONE, NULL, NULL, NULL, rgba);
 	g->objtype = mjOBJ_UNKNOWN;
-	g->objid = 0;
+	g->objid = -1;
 	g->category = mjCAT_DECOR;
 	g->segid = mj.scn.ngeom;
 	mjv_connector(g, mjGEOM_LINE, 0.05, from.data(), to.data());
@@ -85,7 +87,7 @@ int drawLine(
 int drawSpline(
 	MjSim& mj,
 	const WayPoints& wp,
-	float rgba[4]
+	const float rgba[4]
 ) {
 	if (wp.size() < 2) return EXIT_SUCCESS; // nothing to draw
 
@@ -208,21 +210,28 @@ int main(int argc, const char** argv) {
 		// Update the scene first (this resets scn.ngeom)
 		mjv_updateScene(mj.m, mj.d, &mj.opt, NULL, &mj.cam, mjCAT_ALL, &mj.scn);
 
+		int ec = EXIT_SUCCESS;
 		// add line
 		WayPoints wp = {
 			{0.0, 0.0, 0.0},
 			{1.0, 0.0, 0.0},
 			{1.0, 0.5, 0.2}};
-		float rgba[4] = {1.f, 0.f, 1.f, 0.9f};
-		int errCode = drawSpline(mj, wp, rgba);
-		if (errCode != EXIT_SUCCESS){
-		  return errCode;
-		}
+		ec = drawSpline(mj, wp, CLR_PURPLE);
+		if (ec != EXIT_SUCCESS) return ec;
+
+		// add line2
+		WayPoints wp2 = {
+			{0.0, 0.0, 0.0},
+			{0.0, 1.1, 1.0},
+			{1.0, 0.5, 0.5}};
+		ec = drawSpline(mj, wp2, CLR_YELLOW);
+		if (ec != EXIT_SUCCESS) return ec;
+
 		// add sphere
-		Position pt = {1.0, 0.0, 0.0};
-		double radius = 0.03;
-		float clr_sph[4] = {1.f, 0.f, 0.f, 1.f};
-		drawSph(mj, pt, radius, clr_sph);
+		ec = drawSph(mj, {1.0, 0.0, 0.0}, RADIUS_SPH, CLR_RED);
+		if (ec != EXIT_SUCCESS) return ec;
+		ec = drawSph(mj, {0.0, 1.0, 0.0}, RADIUS_SPH, CLR_BLUE);
+		if (ec != EXIT_SUCCESS) return ec;
 
 		mjr_render(viewport, &mj.scn, &mj.con);
 		glfwSwapBuffers(window);
