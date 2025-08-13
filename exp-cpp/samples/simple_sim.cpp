@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <array>
 #include <GLFW/glfw3.h>
 #include <mujoco/mujoco.h>
 
@@ -17,6 +18,31 @@ bool button_middle = false;
 bool button_right = false;
 double lastx = 0;
 double lasty = 0;
+
+
+int addLine(
+	mjvScene& scn,
+	const std::array<double, 3>& from,
+	const std::array<double, 3>& to,
+	float rgba[4])
+{
+	mjvGeom* g = scn.geoms + scn.ngeom;
+	if ( scn.ngeom>=scn.maxgeom ) {
+		mj_warning(d, mjWARN_VGEOMFULL, scn.maxgeom);
+		return EXIT_FAILURE;
+	}
+	else {
+		memset(g, 0, sizeof(mjvGeom));
+		mjv_initGeom(g, mjGEOM_NONE, NULL, NULL, NULL, rgba);
+		g->objtype = mjOBJ_UNKNOWN;
+		g->objid = 0;
+		g->category = mjCAT_DECOR;
+		g->segid = scn.ngeom;
+		mjv_connector(g, mjGEOM_LINE, 0.05, from.data(), to.data());
+		scn.ngeom++;
+	}
+	return EXIT_SUCCESS;
+}
 
 void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods) {
 	if (act==GLFW_PRESS && key==GLFW_KEY_BACKSPACE) {
@@ -107,25 +133,13 @@ int main(int argc, const char** argv) {
 		// Update the scene first (this resets scn.ngeom)
 		mjv_updateScene(m, d, &opt, NULL, &cam, mjCAT_ALL, &scn);
 
-		// Then append custom decor geoms so they are not wiped by update
-		mjvGeom* thisgeom = scn.geoms + scn.ngeom;
-		// addCapsuleToScene(&scn, from, to, /*radius=*/0.04, rgba);
-		if ( scn.ngeom>=scn.maxgeom ) {
-		  mj_warning(d, mjWARN_VGEOMFULL, scn.maxgeom);
-		  return EXIT_FAILURE;
-		}
-		else {
-			memset(thisgeom, 0, sizeof(mjvGeom));
-			float rgba[4]  = {1.f, 0.f, 1.f, 0.9f};
-			mjv_initGeom(thisgeom, mjGEOM_NONE, NULL, NULL, NULL, rgba); 
-			thisgeom->objtype = mjOBJ_UNKNOWN;
-			thisgeom->objid = 0;
-			thisgeom->category = mjCAT_DECOR;
-			thisgeom->segid = scn.ngeom;
-			mjtNum from[3] = {0.0, 0.0, 0.0};
-			mjtNum to[3]   = {1.0, 0.5, 0.2};
-			mjv_connector(thisgeom, mjGEOM_LINE, 0.05, from, to);
-			scn.ngeom++;
+		// add line
+		std::array<double, 3> from = {0.0, 0.0, 0.0};
+		std::array<double, 3> to = {1.0, 0.5, 0.2};
+		float rgba[4] = {1.f, 0.f, 1.f, 0.9f};
+		int errCode = addLine(scn, from, to, rgba);
+		if (errCode != EXIT_SUCCESS){
+		  return errCode;
 		}
 
 		mjr_render(viewport, &scn, &con);
