@@ -228,12 +228,40 @@ int main(int argc, const char** argv) {
 		if (ec != EXIT_SUCCESS) return ec;
 
 		// add sphere
-		ec = drawSph(mj, {1.0, 0.0, 0.0}, RADIUS_SPH, CLR_RED);
+		Position p_leader = {1.0, 0.0, 0.0};
+		ec = drawSph(mj, p_leader, RADIUS_SPH, CLR_RED);
 		if (ec != EXIT_SUCCESS) return ec;
 		ec = drawSph(mj, {0.0, 1.0, 0.0}, RADIUS_SPH, CLR_BLUE);
 		if (ec != EXIT_SUCCESS) return ec;
 
+
+		/*
+		// Draw text at (x,y) in relative coordinates; font is mjtFont.
+		MJAPI void mjr_text(int font, const char* txt, const mjrContext* con,
+                    float x, float y, float r, float g, float b);
+
+		*/
+
 		mjr_render(viewport, &mj.scn, &mj.con);
+
+		// add text		
+		//float screen[2] = {1,1};
+		////mjv_project(screen, p_leader, &mj.cam, &mj.opt, &mj.scn);
+		//mjr_text(
+		//	mjFONT_NORMAL,
+		//	"Tstamp",
+		//	&mj.con,
+		//	0.5, 0.5,
+		//	1.0, 1.0, 0.0
+		//);
+
+		// add time stamp in upper-left corner
+		//char stamp[50];
+		//mju::sprintf_arr(stamp, "Time = %.3f", d->time);
+		//mjr_overlay(mjFONT_NORMAL, mjGRID_TOPLEFT, viewport, "stamp", NULL, &mj.con);
+
+
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
