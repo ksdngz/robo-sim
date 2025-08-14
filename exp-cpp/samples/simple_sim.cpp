@@ -8,8 +8,32 @@
 #include <GLFW/glfw3.h>
 #include <mujoco/mujoco.h>
 
-using Position = std::array<double, 3>;
+//using Position = std::array<double, 3>;
+
+class Position
+{
+public:
+	double x;
+	double y;
+	double z;
+
+	Position operator+(const Position& rhs) const {
+		return {x + rhs.x, y + rhs.y, z + rhs.z};
+	}
+	Position operator-(const Position& rhs) const {
+		return {x - rhs.x, y - rhs.y, z - rhs.z};
+	}
+	operator std::array<double,3>() const {
+		return {x, y, z};	
+	}
+	double norm2() const {
+		return std::sqrt(x * x + y * y + z * z);
+	}
+};
+
 using WayPoints = std::vector<Position>;
+//using PathPoints = std::vector<Position>;
+
 const float CLR_RED[4] = {1.f, 0.f, 0.f, 1.f};
 const float CLR_GREEN[4] = {0.f, 1.f, 0.f, 1.f};
 const float CLR_BLUE[4] = {0.f, 0.f, 1.f, 1.f};
@@ -52,7 +76,7 @@ int drawSph(
     // Add it to the scene
 	mjtNum sphsize[3] = {radius, 0, 0};
     mjtNum myrot3x3[9] = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
-    mjv_initGeom(g, mjGEOM_SPHERE, sphsize, pt.data(), myrot3x3, rgba);
+	mjv_initGeom(g, mjGEOM_SPHERE, sphsize, &pt.x, myrot3x3, rgba);
     g->objtype = mjOBJ_UNKNOWN;
     g->objid = -1;
     g->category = mjCAT_DECOR;
@@ -80,7 +104,7 @@ int drawLine(
 	g->objid = -1;
 	g->category = mjCAT_DECOR;
 	g->segid = mj.scn.ngeom;
-	mjv_connector(g, mjGEOM_LINE, 0.05, from.data(), to.data());
+	mjv_connector(g, mjGEOM_LINE, 0.05, &from.x, &to.x);
 	mj.scn.ngeom++;
 	return EXIT_SUCCESS;
 }
@@ -108,18 +132,109 @@ int drawSpline(
 			double t = (double)j / NUM_STEPS;
 			// Catmull-Rom formula
 			Position pt;
-			for (int k = 0; k < 3; ++k) {
-				pt[k] = 0.5 * ((2.0 * p1[k]) +
-					(-p0[k] + p2[k]) * t +
-					(2.0*p0[k] - 5.0*p1[k] + 4.0*p2[k] - p3[k]) * t * t +
-					(-p0[k] + 3.0*p1[k] - 3.0*p2[k] + p3[k]) * t * t * t);
-			}
+			// x
+			pt.x = 0.5 * ((2.0 * p1.x) +
+				(-p0.x + p2.x) * t +
+				(2.0*p0.x - 5.0*p1.x + 4.0*p2.x - p3.x) * t * t +
+				(-p0.x + 3.0*p1.x - 3.0*p2.x + p3.x) * t * t * t);
+			// y
+			pt.y = 0.5 * ((2.0 * p1.y) +
+				(-p0.y + p2.y) * t +
+				(2.0*p0.y - 5.0*p1.y + 4.0*p2.y - p3.y) * t * t +
+				(-p0.y + 3.0*p1.y - 3.0*p2.y + p3.y) * t * t * t);
+			// z
+			pt.z = 0.5 * ((2.0 * p1.z) +
+				(-p0.z + p2.z) * t +
+				(2.0*p0.z - 5.0*p1.z + 4.0*p2.z - p3.z) * t * t +
+				(-p0.z + 3.0*p1.z - 3.0*p2.z + p3.z) * t * t * t);
 			if (drawLine(mj, prev, pt, rgba) != EXIT_SUCCESS) err = EXIT_FAILURE;
 			prev = pt;
 		}
 	}
 	return err;
 }
+
+void create3rdSpline(
+	const WayPoints& wp,
+	std::vector<Position>& points)
+{
+	if (wp.size() < 2) return; // nothing to draw
+
+	// Catmull-Rom Spline: interpolate between wp[1] ... wp[N-2]
+	const int NUM_STEPS = 20; // number of segments per span
+	for (size_t i = 0; i + 1 < wp.size(); ++i) {
+		// For the first and last segment, duplicate endpoints for tangent
+		const Position& p0 = (i == 0) ? wp[0] : wp[i-1];
+		const Position& p1 = wp[i];
+		const Position& p2 = wp[i+1];
+		const Position& p3 = (i+2 < wp.size()) ? wp[i+2] : wp[wp.size()-1];
+
+		// Interpolate between p1 and p2
+		Position prev = p1;
+		for (int j = 1; j <= NUM_STEPS; ++j) {
+			double t = (double)j / NUM_STEPS;
+			// Catmull-Rom formula
+			Position pt;
+			// x
+			pt.x = 0.5 * ((2.0 * p1.x) +
+				(-p0.x + p2.x) * t +
+				(2.0*p0.x - 5.0*p1.x + 4.0*p2.x - p3.x) * t * t +
+				(-p0.x + 3.0*p1.x - 3.0*p2.x + p3.x) * t * t * t);
+			// y
+			pt.y = 0.5 * ((2.0 * p1.y) +
+				(-p0.y + p2.y) * t +
+				(2.0*p0.y - 5.0*p1.y + 4.0*p2.y - p3.y) * t * t +
+				(-p0.y + 3.0*p1.y - 3.0*p2.y + p3.y) * t * t * t);
+			// z
+			pt.z = 0.5 * ((2.0 * p1.z) +
+				(-p0.z + p2.z) * t +
+				(2.0*p0.z - 5.0*p1.z + 4.0*p2.z - p3.z) * t * t +
+				(-p0.z + 3.0*p1.z - 3.0*p2.z + p3.z) * t * t * t);
+			points.push_back(pt);
+			prev = pt;
+		}
+	}
+}
+
+struct PathPoint
+{
+	double rate;
+	Position point;
+};
+
+class Path{
+public:
+	std::vector<PathPoint> points;
+};
+
+void generatePath(const WayPoints& wp, Path& path)
+{
+	if(path.points.size() > 0) 
+		path.points.clear();
+
+	std::vector<Position> points;
+	create3rdSpline(wp, points);
+
+	double totalNorm = 0.0;
+	for (const auto& p : points) {
+		totalNorm += p.norm2();
+	}
+
+	Position prev = points[0];
+	double rate = 0.0;
+	for (const auto& p : points) {
+		rate += ((p - prev).norm2() / totalNorm);
+		path.points.push_back({rate, p});
+		prev = p;
+	}
+}
+
+//void generateTrajectory()
+//{
+//
+//}
+//
+
 
 void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods) {
 	if (act==GLFW_PRESS && key==GLFW_KEY_BACKSPACE) {
