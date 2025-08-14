@@ -312,9 +312,9 @@ int main(int argc, const char** argv) {
 
 	// WayPoints Definition
 	WayPoints blueSph_wp = {
-	{0.0, 0.0, 0.0},
-	{1.0, 0.0, 0.0},
-	{1.0, 0.5, 0.2}};
+		{0.0, 0.0, 0.0},
+		{1.0, 0.0, 0.0},
+		{1.0, 0.5, 0.2}};
 	// add line2
 	WayPoints wp2 = {
 		{0.0, 0.0, 0.0},
@@ -322,10 +322,23 @@ int main(int argc, const char** argv) {
 		{1.0, 0.5, 0.5}};
 
 	// Create a SimplePathReader instance
-	Path blueSphPath;
+	Path blueSphPath, blueSphMovedPath;
 	generatePath(blueSph_wp, blueSphPath);
 	SimplePathReader blueSphPathReader(blueSphPath);
-	Path blueSphMovedPath;
+	blueSphMovedPath.points.push_back({0.0, blueSphPathReader.update()});
+
+	int ec = EXIT_SUCCESS;
+//		ec = drawSpline(mj, blueSph_wp, CLR_PURPLE);
+//		if (ec != EXIT_SUCCESS) return ec;
+
+	ec = drawSpline(mj, wp2, CLR_PURPLE);
+	if (ec != EXIT_SUCCESS) return ec;
+
+	// draw sphere
+	Position p_leader = {1.0, 0.0, 0.0};
+	ec = drawSph(mj, p_leader, RADIUS_SPH, CLR_RED);
+	if (ec != EXIT_SUCCESS) return ec;
+
 
 	// run main loop, target real-time simulation and 60 fps rendering
 	while (!glfwWindowShouldClose(window)) {
@@ -339,27 +352,20 @@ int main(int argc, const char** argv) {
 		// Update the scene first (this resets scn.ngeom)
 		mjv_updateScene(mj.m, mj.d, &mj.opt, NULL, &mj.cam, mjCAT_ALL, &mj.scn);
 
-		int ec = EXIT_SUCCESS;
-//		ec = drawSpline(mj, blueSph_wp, CLR_PURPLE);
-//		if (ec != EXIT_SUCCESS) return ec;
+		printf("ngeom pre: %d\n", mj.scn.ngeom);
 
-		ec = drawSpline(mj, wp2, CLR_PURPLE);
-		if (ec != EXIT_SUCCESS) return ec;
-
-		// draw sphere
-		Position p_leader = {1.0, 0.0, 0.0};
-		ec = drawSph(mj, p_leader, RADIUS_SPH, CLR_RED);
-		if (ec != EXIT_SUCCESS) return ec;
-
+		// draw blue sphere and the moved path
 		Position pos_blueSph = blueSphPathReader.update();
-
-		// draw blue sphere
 		ec = drawSph(mj, pos_blueSph, RADIUS_SPH, CLR_BLUE);
 		if (ec != EXIT_SUCCESS) return ec;
-		// draw moved path of blue sphere
-		blueSphMovedPath.points.push_back({0.0, pos_blueSph});
+
+		if((blueSphMovedPath.points.back().point - pos_blueSph).norm2()>0.0001) {
+			blueSphMovedPath.points.push_back({0.0, pos_blueSph});
+		}
 		ec = drawPath(mj, blueSphMovedPath, CLR_YELLOW);
 		if (ec != EXIT_SUCCESS) return ec;
+
+		printf("ngeom: %d\n", mj.scn.ngeom);
 
 		mj.opt.label = mjLABEL_GEOM;
 		mjv_addGeoms(mj.m, mj.d, &mj.opt, NULL, mjCAT_DECOR, &mj.scn);
