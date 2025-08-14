@@ -32,7 +32,7 @@ public:
 };
 
 using WayPoints = std::vector<Position>;
-//using PathPoints = std::vector<Position>;
+
 
 const float CLR_RED[4] = {1.f, 0.f, 0.f, 1.f};
 const float CLR_GREEN[4] = {0.f, 1.f, 0.f, 1.f};
@@ -58,6 +58,33 @@ public:
 	double lasty = 0;
 };
 MjSim mj;
+
+void catmullRomSplinePoints(const WayPoints& wp, std::vector<Position>& out_points, int num_steps = 20) {
+	if (wp.size() < 2) return;
+	for (size_t i = 0; i + 1 < wp.size(); ++i) {
+		const Position& p0 = (i == 0) ? wp[0] : wp[i-1];
+		const Position& p1 = wp[i];
+		const Position& p2 = wp[i+1];
+		const Position& p3 = (i+2 < wp.size()) ? wp[i+2] : wp[wp.size()-1];
+		for (int j = 1; j <= num_steps; ++j) {
+			double t = (double)j / num_steps;
+			Position pt;
+			pt.x = 0.5 * ((2.0 * p1.x) +
+				(-p0.x + p2.x) * t +
+				(2.0*p0.x - 5.0*p1.x + 4.0*p2.x - p3.x) * t * t +
+				(-p0.x + 3.0*p1.x - 3.0*p2.x + p3.x) * t * t * t);
+			pt.y = 0.5 * ((2.0 * p1.y) +
+				(-p0.y + p2.y) * t +
+				(2.0*p0.y - 5.0*p1.y + 4.0*p2.y - p3.y) * t * t +
+				(-p0.y + 3.0*p1.y - 3.0*p2.y + p3.y) * t * t * t);
+			pt.z = 0.5 * ((2.0 * p1.z) +
+				(-p0.z + p2.z) * t +
+				(2.0*p0.z - 5.0*p1.z + 4.0*p2.z - p3.z) * t * t +
+				(-p0.z + 3.0*p1.z - 3.0*p2.z + p3.z) * t * t * t);
+			out_points.push_back(pt);
+		}
+	}
+}
 
 int drawSph(
 	MjSim& mj,
@@ -114,42 +141,15 @@ int drawSpline(
 	const WayPoints& wp,
 	const float rgba[4]
 ) {
-	if (wp.size() < 2) return EXIT_SUCCESS; // nothing to draw
-
-	// Catmull-Rom Spline: interpolate between wp[1] ... wp[N-2]
-	const int NUM_STEPS = 20; // number of segments per span
+	if (wp.size() < 2) return EXIT_SUCCESS;
+	std::vector<Position> points;
+	catmullRomSplinePoints(wp, points);
 	int err = EXIT_SUCCESS;
-	for (size_t i = 0; i + 1 < wp.size(); ++i) {
-		// For the first and last segment, duplicate endpoints for tangent
-		const Position& p0 = (i == 0) ? wp[0] : wp[i-1];
-		const Position& p1 = wp[i];
-		const Position& p2 = wp[i+1];
-		const Position& p3 = (i+2 < wp.size()) ? wp[i+2] : wp[wp.size()-1];
-
-		// Interpolate between p1 and p2
-		Position prev = p1;
-		for (int j = 1; j <= NUM_STEPS; ++j) {
-			double t = (double)j / NUM_STEPS;
-			// Catmull-Rom formula
-			Position pt;
-			// x
-			pt.x = 0.5 * ((2.0 * p1.x) +
-				(-p0.x + p2.x) * t +
-				(2.0*p0.x - 5.0*p1.x + 4.0*p2.x - p3.x) * t * t +
-				(-p0.x + 3.0*p1.x - 3.0*p2.x + p3.x) * t * t * t);
-			// y
-			pt.y = 0.5 * ((2.0 * p1.y) +
-				(-p0.y + p2.y) * t +
-				(2.0*p0.y - 5.0*p1.y + 4.0*p2.y - p3.y) * t * t +
-				(-p0.y + 3.0*p1.y - 3.0*p2.y + p3.y) * t * t * t);
-			// z
-			pt.z = 0.5 * ((2.0 * p1.z) +
-				(-p0.z + p2.z) * t +
-				(2.0*p0.z - 5.0*p1.z + 4.0*p2.z - p3.z) * t * t +
-				(-p0.z + 3.0*p1.z - 3.0*p2.z + p3.z) * t * t * t);
-			if (drawLine(mj, prev, pt, rgba) != EXIT_SUCCESS) err = EXIT_FAILURE;
-			prev = pt;
-		}
+	if (points.empty()) return EXIT_SUCCESS;
+	Position prev = wp[0];
+	for (const auto& pt : points) {
+		if (drawLine(mj, prev, pt, rgba) != EXIT_SUCCESS) err = EXIT_FAILURE;
+		prev = pt;
 	}
 	return err;
 }
@@ -158,42 +158,7 @@ void create3rdSpline(
 	const WayPoints& wp,
 	std::vector<Position>& points)
 {
-	if (wp.size() < 2) return; // nothing to draw
-
-	// Catmull-Rom Spline: interpolate between wp[1] ... wp[N-2]
-	const int NUM_STEPS = 20; // number of segments per span
-	for (size_t i = 0; i + 1 < wp.size(); ++i) {
-		// For the first and last segment, duplicate endpoints for tangent
-		const Position& p0 = (i == 0) ? wp[0] : wp[i-1];
-		const Position& p1 = wp[i];
-		const Position& p2 = wp[i+1];
-		const Position& p3 = (i+2 < wp.size()) ? wp[i+2] : wp[wp.size()-1];
-
-		// Interpolate between p1 and p2
-		Position prev = p1;
-		for (int j = 1; j <= NUM_STEPS; ++j) {
-			double t = (double)j / NUM_STEPS;
-			// Catmull-Rom formula
-			Position pt;
-			// x
-			pt.x = 0.5 * ((2.0 * p1.x) +
-				(-p0.x + p2.x) * t +
-				(2.0*p0.x - 5.0*p1.x + 4.0*p2.x - p3.x) * t * t +
-				(-p0.x + 3.0*p1.x - 3.0*p2.x + p3.x) * t * t * t);
-			// y
-			pt.y = 0.5 * ((2.0 * p1.y) +
-				(-p0.y + p2.y) * t +
-				(2.0*p0.y - 5.0*p1.y + 4.0*p2.y - p3.y) * t * t +
-				(-p0.y + 3.0*p1.y - 3.0*p2.y + p3.y) * t * t * t);
-			// z
-			pt.z = 0.5 * ((2.0 * p1.z) +
-				(-p0.z + p2.z) * t +
-				(2.0*p0.z - 5.0*p1.z + 4.0*p2.z - p3.z) * t * t +
-				(-p0.z + 3.0*p1.z - 3.0*p2.z + p3.z) * t * t * t);
-			points.push_back(pt);
-			prev = pt;
-		}
-	}
+	catmullRomSplinePoints(wp, points);
 }
 
 struct PathPoint
@@ -228,13 +193,6 @@ void generatePath(const WayPoints& wp, Path& path)
 		prev = p;
 	}
 }
-
-//void generateTrajectory()
-//{
-//
-//}
-//
-
 
 void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods) {
 	if (act==GLFW_PRESS && key==GLFW_KEY_BACKSPACE) {
@@ -352,37 +310,14 @@ int main(int argc, const char** argv) {
 		ec = drawSph(mj, {0.0, 1.0, 0.0}, RADIUS_SPH, CLR_BLUE);
 		if (ec != EXIT_SUCCESS) return ec;
 
+		//void generatePath(const WayPoints& wp, Path& path)
 
-		/*
-		// Draw text at (x,y) in relative coordinates; font is mjtFont.
-		MJAPI void mjr_text(int font, const char* txt, const mjrContext* con,
-                    float x, float y, float r, float g, float b);
-
-		*/
 		mj.opt.label = mjLABEL_GEOM;
 		mjv_addGeoms(mj.m, mj.d, &mj.opt, NULL, mjCAT_DECOR, &mj.scn);
 		mjr_render(viewport, &mj.scn, &mj.con);
-
-		// add text		
-		//float screen[2] = {1,1};
-		////mjv_project(screen, p_leader, &mj.cam, &mj.opt, &mj.scn);
-		//mjr_text(
-		//	mjFONT_NORMAL,
-		//	"Tstamp",
-		//	&mj.con,
-		//	0.5, 0.5,
-		//	1.0, 1.0, 0.0
-		//);
-
-		// add time stamp in upper-left corner
-		//char stamp[50];
-		//mju::sprintf_arr(stamp, "Time = %.3f", d->time);
-		//mjr_overlay(mjFONT_NORMAL, mjGRID_TOPLEFT, viewport, "stamp", NULL, &mj.con);
-
-
-
 		glfwSwapBuffers(window);
 		glfwPollEvents();
+
 	}
 
 	//free visualization storage
