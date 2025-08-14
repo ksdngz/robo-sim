@@ -314,9 +314,11 @@ int main(int argc, const char** argv) {
 	glfwSetMouseButtonCallback(window, mouse_button);
 	glfwSetScrollCallback(window, scroll);
 
+	printf("Timestep: %f seconds\n", mj.m->opt.timestep);
+
 	// run main loop, target real-time simulation and 60 fps rendering
 	while (!glfwWindowShouldClose(window)) {
-		mjtNum simstart = mj.d->time;
+		double simstart = mj.d->time;
 		while (mj.d->time - simstart < 1.0/60.0) {
 			mj_step(mj.m, mj.d);
 		}
