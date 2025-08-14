@@ -35,7 +35,7 @@ using WayPoints = std::vector<Position>;
 
 
 const float CLR_RED[4] = {1.f, 0.f, 0.f, 1.f};
-const float CLR_GREEN[4] = {0.f, 1.f, 0.f, 1.f};
+//const float CLR_GREEN[4] = {0.f, 1.f, 0.f, 1.f};
 const float CLR_BLUE[4] = {0.f, 0.f, 1.f, 1.f};
 const float CLR_PURPLE[4] = {1.f, 0.f, 1.f, 1.f};
 const float CLR_YELLOW[4] = {1.f, 1.f, 0.f, 1.f};
@@ -58,6 +58,17 @@ public:
 	double lasty = 0;
 };
 MjSim mj;
+
+struct PathPoint
+{
+	double rate;
+	Position point;
+};
+
+class Path{
+public:
+	std::vector<PathPoint> points;
+};
 
 void catmullRomSplinePoints(const WayPoints& wp, std::vector<Position>& out_points, int num_steps = 20) {
 	if (wp.size() < 2) return;
@@ -142,16 +153,34 @@ int drawSpline(
 	const float rgba[4]
 ) {
 	if (wp.size() < 2) return EXIT_SUCCESS;
+
 	std::vector<Position> points;
 	catmullRomSplinePoints(wp, points);
-	int err = EXIT_SUCCESS;
+
 	if (points.empty()) return EXIT_SUCCESS;
-	Position prev = wp[0];
+	Position prev = points[0];
+
 	for (const auto& pt : points) {
-		if (drawLine(mj, prev, pt, rgba) != EXIT_SUCCESS) err = EXIT_FAILURE;
+		if (drawLine(mj, prev, pt, rgba) != EXIT_SUCCESS) 
+			return EXIT_FAILURE;
 		prev = pt;
 	}
-	return err;
+	return EXIT_SUCCESS;
+}
+
+int drawPath(
+	MjSim& mj,
+	const Path& path,
+	const float rgba[4])
+{
+	const std::vector<PathPoint>& points = path.points;
+	Position prev = points[0].point;
+	for (const auto& pt : points) {
+		if (drawLine(mj, prev, pt.point, rgba) != EXIT_SUCCESS) 
+			return EXIT_FAILURE;
+		prev = pt.point;
+	}
+	return EXIT_SUCCESS;
 }
 
 void create3rdSpline(
@@ -161,16 +190,6 @@ void create3rdSpline(
 	catmullRomSplinePoints(wp, points);
 }
 
-struct PathPoint
-{
-	double rate;
-	Position point;
-};
-
-class Path{
-public:
-	std::vector<PathPoint> points;
-};
 
 void generatePath(const WayPoints& wp, Path& path)
 {
@@ -229,6 +248,23 @@ void scroll(GLFWwindow* window, double xoffset, double yoffset) {
 	mjv_moveCamera(mj.m, mjMOUSE_ZOOM, 0, -0.05*yoffset, &mj.scn, &mj.cam);
 }
 
+class SimplePathReader{
+public:
+	SimplePathReader(const Path& path)
+	: path_(path)
+	, index_(0){}
+
+	Position& update(){
+		if(index_ >= path_.points.size()) {
+			return path_.points.back().point;
+		}
+		return path_.points[index_++].point;
+	}
+private:
+	Path path_;
+	int index_;
+};
+
 int main(int argc, const char** argv) {
 
 	// モデルファイルパスを決定
@@ -274,6 +310,23 @@ int main(int argc, const char** argv) {
 
 	printf("Timestep: %f seconds\n", mj.m->opt.timestep);
 
+	// WayPoints Definition
+	WayPoints blueSph_wp = {
+	{0.0, 0.0, 0.0},
+	{1.0, 0.0, 0.0},
+	{1.0, 0.5, 0.2}};
+	// add line2
+	WayPoints wp2 = {
+		{0.0, 0.0, 0.0},
+		{0.0, 1.1, 1.0},
+		{1.0, 0.5, 0.5}};
+
+	// Create a SimplePathReader instance
+	Path blueSphPath;
+	generatePath(blueSph_wp, blueSphPath);
+	SimplePathReader blueSphPathReader(blueSphPath);
+	Path blueSphMovedPath;
+
 	// run main loop, target real-time simulation and 60 fps rendering
 	while (!glfwWindowShouldClose(window)) {
 		double simstart = mj.d->time;
@@ -287,30 +340,26 @@ int main(int argc, const char** argv) {
 		mjv_updateScene(mj.m, mj.d, &mj.opt, NULL, &mj.cam, mjCAT_ALL, &mj.scn);
 
 		int ec = EXIT_SUCCESS;
-		// add line
-		WayPoints wp = {
-			{0.0, 0.0, 0.0},
-			{1.0, 0.0, 0.0},
-			{1.0, 0.5, 0.2}};
-		ec = drawSpline(mj, wp, CLR_PURPLE);
+//		ec = drawSpline(mj, blueSph_wp, CLR_PURPLE);
+//		if (ec != EXIT_SUCCESS) return ec;
+
+		ec = drawSpline(mj, wp2, CLR_PURPLE);
 		if (ec != EXIT_SUCCESS) return ec;
 
-		// add line2
-		WayPoints wp2 = {
-			{0.0, 0.0, 0.0},
-			{0.0, 1.1, 1.0},
-			{1.0, 0.5, 0.5}};
-		ec = drawSpline(mj, wp2, CLR_YELLOW);
-		if (ec != EXIT_SUCCESS) return ec;
-
-		// add sphere
+		// draw sphere
 		Position p_leader = {1.0, 0.0, 0.0};
 		ec = drawSph(mj, p_leader, RADIUS_SPH, CLR_RED);
 		if (ec != EXIT_SUCCESS) return ec;
-		ec = drawSph(mj, {0.0, 1.0, 0.0}, RADIUS_SPH, CLR_BLUE);
-		if (ec != EXIT_SUCCESS) return ec;
 
-		//void generatePath(const WayPoints& wp, Path& path)
+		Position pos_blueSph = blueSphPathReader.update();
+
+		// draw blue sphere
+		ec = drawSph(mj, pos_blueSph, RADIUS_SPH, CLR_BLUE);
+		if (ec != EXIT_SUCCESS) return ec;
+		// draw moved path of blue sphere
+		blueSphMovedPath.points.push_back({0.0, pos_blueSph});
+		ec = drawPath(mj, blueSphMovedPath, CLR_YELLOW);
+		if (ec != EXIT_SUCCESS) return ec;
 
 		mj.opt.label = mjLABEL_GEOM;
 		mjv_addGeoms(mj.m, mj.d, &mj.opt, NULL, mjCAT_DECOR, &mj.scn);
