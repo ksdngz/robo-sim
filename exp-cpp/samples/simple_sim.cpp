@@ -301,22 +301,22 @@ private:
 	int index_;
 };
 
-// 二次遅れ制御系（Position型対応）
+// Second-order-delayed system (Position type supported)
 class SecondOrderDynamics {
 public:
-	// パラメータ: 慣性 m, 減衰比 zeta, 固有角振動数 omega
+	// Parameters: inertia m, damping ratio zeta, natural angular frequency omega
 	double m;
 	double zeta;
 	double omega; // rad/s
-	Position y;    // 出力（位置）
-	Position yd;   // 一階微分（速度）
+	Position y;    // Output (position)
+	Position yd;   // First derivative (velocity)
 
 	SecondOrderDynamics(double m_, double zeta_, double omega_, const Position& initp)
 		: m(m_), zeta(zeta_), omega(omega_), y(initp), yd{0,0,0} {}
 
-	// ref: 参照入力, dt: 制御周期
-	// 連続系: y'' + 2*zeta*omega*y' + omega^2 * y = omega^2 * ref
-	// 数値積分: 前進オイラー（必要なら改良オイラー/Runge-Kuttaへ拡張可）
+	// ref: reference input, dt: control timestep
+	// Continuous system: y'' + 2*zeta*omega*y' + omega^2 * y = omega^2 * ref
+	// Numerical integration: Forward Euler (extendable to Heun / Runge-Kutta if needed)
 	Position update(const Position& ref, double dt) {
 		// ydd = ω^2 (ref - y) - 2 ζ ω yd
 		Position ydd = (ref - y) * (omega * omega) - yd * (2.0 * zeta * omega);
@@ -328,7 +328,7 @@ public:
 
 int main(int argc, const char** argv) {
 
-	// モデルファイルパスを決定
+	// Decide model file path
 	const char* model_path = "../models/urdf/robot/panda_arm_mjcf.xml";
 	if (argc == 2) model_path = argv[1];
 
