@@ -71,7 +71,7 @@ using WayPoints = std::vector<Position>;
 
 
 const float CLR_RED[4] = {1.f, 0.f, 0.f, 1.f};
-//const float CLR_GREEN[4] = {0.f, 1.f, 0.f, 1.f};
+const float CLR_GREEN[4] = {0.f, 1.f, 0.f, 1.f};
 const float CLR_BLUE[4] = {0.f, 0.f, 1.f, 1.f};
 const float CLR_PURPLE[4] = {1.f, 0.f, 1.f, 1.f};
 const float CLR_YELLOW[4] = {1.f, 1.f, 0.f, 1.f};
@@ -304,14 +304,15 @@ private:
 // 二次遅れ制御系（Position型対応）
 class SecondOrderDynamics {
 public:
-	// パラメータ: 減衰比 zeta, 固有角振動数 omega
+	// パラメータ: 慣性 m, 減衰比 zeta, 固有角振動数 omega
+	double m;
 	double zeta;
 	double omega; // rad/s
 	Position y;    // 出力（位置）
 	Position yd;   // 一階微分（速度）
 
-	SecondOrderDynamics(double zeta_, double omega_, const Position& initp)
-		: zeta(zeta_), omega(omega_), y(initp), yd{0,0,0} {}
+	SecondOrderDynamics(double m_, double zeta_, double omega_, const Position& initp)
+		: m(m_), zeta(zeta_), omega(omega_), y(initp), yd{0,0,0} {}
 
 	// ref: 参照入力, dt: 制御周期
 	// 連続系: y'' + 2*zeta*omega*y' + omega^2 * y = omega^2 * ref
@@ -382,20 +383,18 @@ int main(int argc, const char** argv) {
 		{1.0, 0.5, 0.5}};
 
 	// Create a SimplePathReader instance
-	Path blueSphPath, blueSphMovedPath;
+	Path blueSphPath;
 	generatePath(blueSph_wp, blueSphPath);
 	SimplePathReader blueSphPathReader(blueSphPath);
-	blueSphMovedPath.points.push_back({0.0, blueSphPathReader.update()});
 
-	int ec = EXIT_SUCCESS;
-//		ec = drawSpline(mj, blueSph_wp, CLR_PURPLE);
-//		if (ec != EXIT_SUCCESS) return ec;
+	Path blueSphMovedPath, redSphMovedPath, greenSphMovedPath;
+	blueSphMovedPath.points.push_back({0.0, blueSphPathReader.update()});
+	redSphMovedPath.points.push_back({0.0, {0.0, 0.0, 0.0}});
+	greenSphMovedPath.points.push_back({0.0, {0.0, 0.0, 0.0}});
 
 	// redSph
-	SecondOrderDynamics redSph(1.0, 1.0, {0.0, 0.0, 0.0});
-	ec = drawSpline(mj, wp2, CLR_PURPLE);
-	if (ec != EXIT_SUCCESS) return ec;
-
+	SecondOrderDynamics redSph(0.1, 0.25, 1.0, {0.0, 0.0, 0.0});
+	SecondOrderDynamics greenSph(0.1, 0.25, 2.0, {0.0, 0.0, 0.0});
 
 
 	// run main loop, target real-time simulation and 60 fps rendering
@@ -410,23 +409,37 @@ int main(int argc, const char** argv) {
 		// Update the scene first (this resets scn.ngeom)
 		mjv_updateScene(mj.m, mj.d, &mj.opt, NULL, &mj.cam, mjCAT_ALL, &mj.scn);
 
-
-		// draw blue sphere and the moved path
-		Position pos_blueSph = blueSphPathReader.update();
-		ec = drawSph(mj, pos_blueSph, RADIUS_SPH, CLR_BLUE);
-		if (ec != EXIT_SUCCESS) return ec;
-
-		if((blueSphMovedPath.points.back().point - pos_blueSph).norm2()>0.0001) {
-			blueSphMovedPath.points.push_back({0.0, pos_blueSph});
-		}
-		ec = drawPath(mj, blueSphMovedPath, CLR_YELLOW);
-		if (ec != EXIT_SUCCESS) return ec;
-
-
-		// draw red sphere
 		double dt = mj.d->time - simstart;
-		Position pos_redSph = redSph.update(pos_blueSph, dt);
+		int ec = EXIT_SUCCESS;
+		ec = drawSpline(mj, blueSph_wp, CLR_YELLOW);
+		if (ec != EXIT_SUCCESS) return ec;
+
+		// draw spheres and the moved path
+		// blue sphere
+		Position pos_ref = blueSphPathReader.update();
+		ec = drawSph(mj, pos_ref, RADIUS_SPH, CLR_BLUE);
+		if (ec != EXIT_SUCCESS) return ec;
+		// red sphere
+		Position pos_redSph = redSph.update(pos_ref, dt);
 		ec = drawSph(mj, pos_redSph, RADIUS_SPH, CLR_RED);
+		if (ec != EXIT_SUCCESS) return ec;
+		// green sphere
+		Position pos_greenSph = greenSph.update(pos_ref, dt);
+		ec = drawSph(mj, pos_greenSph, RADIUS_SPH, CLR_GREEN);
+		if (ec != EXIT_SUCCESS) return ec;
+
+
+		auto drawMovedPath = [](MjSim& mj, Path& path, const Position& pos, const float rgba[4]) -> int {
+			if((path.points.back().point - pos).norm2()>0.0001) {
+				path.points.push_back({0.0, pos});
+			}
+			return drawPath(mj, path, rgba);
+		};
+		ec = drawMovedPath(mj, blueSphMovedPath, pos_ref, CLR_BLUE);
+		if (ec != EXIT_SUCCESS) return ec;
+		ec = drawMovedPath(mj, redSphMovedPath, pos_redSph, CLR_RED);
+		if (ec != EXIT_SUCCESS) return ec;
+		ec = drawMovedPath(mj, greenSphMovedPath, pos_greenSph, CLR_GREEN);
 		if (ec != EXIT_SUCCESS) return ec;
 
 		printf("dt: %f, ngeom: %d\n", dt, mj.scn.ngeom);
