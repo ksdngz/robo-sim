@@ -28,6 +28,8 @@ target_link_libraries(simple_sim mujoco "${GLFW_ROOT}/lib/glfw3.lib")
 # Add Eigen include directory
 set(EIGEN_DIR "${CMAKE_SOURCE_DIR}/third_party/eigen")
 include_directories(${EIGEN_DIR})
+set(EIGEN_UNSUPPORTED_DIR "${CMAKE_SOURCE_DIR}/third_party/eigen/unsupported")
+include_directories(${EIGEN_UNSUPPORTED_DIR})
 
 # For Windows: copy DLL to output dir after build
 if (WIN32)

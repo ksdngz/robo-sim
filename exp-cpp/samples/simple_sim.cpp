@@ -8,6 +8,11 @@
 #include <vector>
 #include <GLFW/glfw3.h>
 #include <mujoco/mujoco.h>
+#include <Eigen/Dense>
+#include <unsupported/Eigen/Splines>
+
+// Spline alias (3D)
+using Spline3d = Eigen::Spline<double, 3>;
 
 const float CLR_RED[4] = {1.f, 0.f, 0.f, 1.f};
 const float CLR_GREEN[4] = {0.f, 1.f, 0.f, 1.f};
@@ -215,6 +220,45 @@ void create3rdSpline(
 	catmullRomSplinePoints(wp, points);
 }
 
+// Fit a spline to Path points (positions) using Eigen::SplineFitting.
+// Returns: 0 success, 1 = not enough points, 2 = invalid rate sequence.
+inline int makePathSpline(const Path& path, Spline3d& spline, int degree = 3) {
+    const size_t N = path.points.size();
+    if (N < 2) {
+        return 1; // not enough points
+    }
+    // Validate rates strictly monotonic non-decreasing within [0,1]
+    double prevRate = -1.0;
+    for (size_t i = 0; i < N; ++i) {
+        double r = path.points[i].rate;
+        if (!(r >= 0.0 && r <= 1.0) || r < prevRate) {
+            return 2; // invalid rate sequence
+        }
+        prevRate = r;
+    }
+    // Build matrix of points (3 x N)
+    Eigen::Matrix<double, 3, Eigen::Dynamic> pts(3, static_cast<int>(N));
+    Eigen::RowVectorXd u(static_cast<int>(N));
+    for (size_t i = 0; i < N; ++i) {
+        const auto& P = path.points[i].point;
+        pts(0, static_cast<int>(i)) = P.x;
+        pts(1, static_cast<int>(i)) = P.y;
+        pts(2, static_cast<int>(i)) = P.z;
+        u(static_cast<int>(i)) = path.points[i].rate; // assume valid
+    }
+    int maxDegree = static_cast<int>(N) - 1;
+    if (degree > maxDegree) degree = maxDegree;
+    if (degree < 1) degree = 1;
+    spline = Eigen::SplineFitting<Spline3d>::Interpolate(pts, degree, u);
+    return 0;
+}
+
+// Sample spline at normalized parameter t in [0,1].
+inline Position sampleSpline(const Spline3d& spline, double t) {
+    double clamped = std::min(1.0, std::max(0.0, t));
+    Eigen::Matrix<double,3,1> v = spline(clamped);
+    return Position{v(0), v(1), v(2)};
+}
 
 void generatePath(const WayPoints& wp, Path& path)
 {
@@ -278,19 +322,30 @@ void scroll(GLFWwindow* window, double xoffset, double yoffset) {
 
 class SimplePathReader{
 public:
-	SimplePathReader(const Path& path)
+	SimplePathReader(const Path& path, int T)
 	: path_(path)
-	, index_(0){}
-
-	Position& update(){
-		if(index_ >= path_.points.size()) {
-			return path_.points.back().point;
+	, t_(0)
+	, splineValid_(false)
+	, T_(T)	
+	{
+		if (makePathSpline(path_, spline_) == 0) {
+			splineValid_ = true;
 		}
-		return path_.points[index_++].point;
+	}
+
+	Position update()
+	{
+		if (t_ >= T_) {
+			return sampleSpline(spline_, 1.0);
+		}
+		return sampleSpline(spline_, static_cast<double>(t_++) / T_);
 	}
 private:
 	Path path_;
-	int index_;
+	int t_;
+	Spline3d spline_;
+	bool splineValid_;
+	int T_;
 };
 
 // Second-order-delayed system (Position type supported)
@@ -376,8 +431,9 @@ int main(int argc, const char** argv) {
 
 	// Create a SimplePathReader instance
 	Path blueSphPath;
+	int T = 200;  // Define the duration of the path
 	generatePath(blueSph_wp, blueSphPath);
-	SimplePathReader blueSphPathReader(blueSphPath);
+	SimplePathReader blueSphPathReader(blueSphPath, T);
 
 	Path blueSphMovedPath, redSphMovedPath, greenSphMovedPath;
 	blueSphMovedPath.points.push_back({0.0, blueSphPathReader.update()});
