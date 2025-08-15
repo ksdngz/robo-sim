@@ -26,6 +26,24 @@ if exist %GLFW_DIR%\include\GLFW\glfw3.h (
 	echo GLFW VC installed in %GLFW_DIR%
 )
 
+REM === Download and extract Eigen ===
+set EIGEN_VER=3.4.0
+set EIGEN_ZIP=eigen-%EIGEN_VER%.zip
+set EIGEN_URL=https://gitlab.com/libeigen/eigen/-/archive/%EIGEN_VER%/%EIGEN_ZIP%
+set EIGEN_DIR=third_party\eigen
+
+if exist %EIGEN_DIR%\Eigen\Dense (
+    echo Eigen already installed in %EIGEN_DIR%
+) else (
+    echo Downloading Eigen %EIGEN_VER%
+    powershell -Command "Invoke-WebRequest -Uri %EIGEN_URL% -OutFile %EIGEN_ZIP%"
+    echo Extracting Eigen ...
+    powershell -Command "Expand-Archive -Path %EIGEN_ZIP% -DestinationPath third_party"
+    move third_party\eigen-%EIGEN_VER% %EIGEN_DIR%
+    del %EIGEN_ZIP%
+    echo Eigen installed in %EIGEN_DIR%
+)
+
 REM === Settings: Visual Studio Generator with ClangCL ===
 set GENERATOR=Visual Studio 17 2022
 set TOOLSET=ClangCL

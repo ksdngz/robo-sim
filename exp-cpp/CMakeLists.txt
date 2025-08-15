@@ -25,6 +25,10 @@ set(GLFW_ROOT "${CMAKE_SOURCE_DIR}/third_party/glfw")
 include_directories(${GLFW_ROOT}/include)
 target_link_libraries(simple_sim mujoco "${GLFW_ROOT}/lib/glfw3.lib")
 
+# Add Eigen include directory
+set(EIGEN_DIR "${CMAKE_SOURCE_DIR}/third_party/eigen")
+include_directories(${EIGEN_DIR})
+
 # For Windows: copy DLL to output dir after build
 if (WIN32)
     add_custom_command(TARGET simple_sim POST_BUILD
