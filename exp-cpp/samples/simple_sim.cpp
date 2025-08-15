@@ -9,7 +9,13 @@
 #include <GLFW/glfw3.h>
 #include <mujoco/mujoco.h>
 
-//using Position = std::array<double, 3>;
+const float CLR_RED[4] = {1.f, 0.f, 0.f, 1.f};
+const float CLR_GREEN[4] = {0.f, 1.f, 0.f, 1.f};
+const float CLR_BLUE[4] = {0.f, 0.f, 1.f, 1.f};
+//const float CLR_PURPLE[4] = {1.f, 0.f, 1.f, 1.f};
+const float CLR_YELLOW[4] = {1.f, 1.f, 0.f, 1.f};
+const double RADIUS_SPH = 0.03;
+
 
 class Position
 {
@@ -24,24 +30,14 @@ public:
 	Position(const Position&) = default;
 	Position(Position&&) noexcept = default;
 
-	Position operator+(const Position& rhs) const {
-		return {x + rhs.x, y + rhs.y, z + rhs.z};
-	}
-	Position operator-(const Position& rhs) const {
-		return {x - rhs.x, y - rhs.y, z - rhs.z};
-	}
-	operator std::array<double,3>() const {
-		return {x, y, z};	
-	}
-	double norm2() const {
-		return std::sqrt(x * x + y * y + z * z);
-	}
+	Position operator+(const Position& rhs) const {return {x + rhs.x, y + rhs.y, z + rhs.z};}
+	Position operator-(const Position& rhs) const {return {x - rhs.x, y - rhs.y, z - rhs.z};}
+	operator std::array<double,3>() const { return {x, y, z};}
+	double norm2() const { return std::sqrt(x * x + y * y + z * z);}
 
 	// -------- assignment operators --------
-	// assignment operators
 	Position& operator=(const Position& other) = default;
 	Position& operator=(Position&& other) noexcept = default;
-	// assign from std::array<double,3>
 	Position& operator=(const std::array<double,3>& arr) {
 		x = arr[0]; y = arr[1]; z = arr[2];
 		return *this;
@@ -68,14 +64,6 @@ public:
 };
 
 using WayPoints = std::vector<Position>;
-
-
-const float CLR_RED[4] = {1.f, 0.f, 0.f, 1.f};
-const float CLR_GREEN[4] = {0.f, 1.f, 0.f, 1.f};
-const float CLR_BLUE[4] = {0.f, 0.f, 1.f, 1.f};
-const float CLR_PURPLE[4] = {1.f, 0.f, 1.f, 1.f};
-const float CLR_YELLOW[4] = {1.f, 1.f, 0.f, 1.f};
-const double RADIUS_SPH = 0.03;
 
 class MjSim
 {
@@ -137,7 +125,8 @@ int drawSph(
 	MjSim& mj,
 	const Position& pt,
 	double radius,
-	const float rgba[4])
+	const float rgba[4],
+	std::string name)
 { 
 	if ( mj.scn.ngeom>=mj.scn.maxgeom ) {
 		mj_warning(mj.d, mjWARN_VGEOMFULL, mj.scn.maxgeom);
@@ -155,7 +144,7 @@ int drawSph(
     g->objid = -1;
     g->category = mjCAT_DECOR;
     g->segid = scn.ngeom;
-	strncpy_s(g->label, sizeof(g->label), "mySph1", _TRUNCATE);
+	strncpy_s(g->label, sizeof(g->label), name.c_str(), _TRUNCATE);
 
 	scn.ngeom++;
 	return EXIT_SUCCESS;
@@ -236,17 +225,20 @@ void generatePath(const WayPoints& wp, Path& path)
 	create3rdSpline(wp, points);
 
 	double totalNorm = 0.0;
+	Position prev = points[0];
 	for (const auto& p : points) {
-		totalNorm += p.norm2();
+		totalNorm += (p - prev).norm2();
+		prev = p;
 	}
 
-	Position prev = points[0];
+	prev = points[0];
 	double rate = 0.0;
 	for (const auto& p : points) {
 		rate += ((p - prev).norm2() / totalNorm);
 		path.points.push_back({rate, p});
 		prev = p;
 	}
+	path.points.back().rate = 1.0; // for compensation.
 }
 
 void keyboard(GLFWwindow* window, int key, int scancode, int act, int mods) {
@@ -417,17 +409,17 @@ int main(int argc, const char** argv) {
 		// draw spheres and the moved path
 		// blue sphere
 		Position pos_ref = blueSphPathReader.update();
-		ec = drawSph(mj, pos_ref, RADIUS_SPH, CLR_BLUE);
+		ec = drawSph(mj, pos_ref, RADIUS_SPH, CLR_BLUE, "ref");
 		if (ec != EXIT_SUCCESS) return ec;
 		// red sphere
 		Position pos_redSph = redSph.update(pos_ref, dt);
-		ec = drawSph(mj, pos_redSph, RADIUS_SPH, CLR_RED);
+		ec = drawSph(mj, pos_redSph, RADIUS_SPH, CLR_RED, "p1");
 		if (ec != EXIT_SUCCESS) return ec;
 		// green sphere
 		Position pos_greenSph = greenSph.update(pos_ref, dt);
-		ec = drawSph(mj, pos_greenSph, RADIUS_SPH, CLR_GREEN);
+		ec = drawSph(mj, pos_greenSph, RADIUS_SPH, CLR_GREEN, "p2");
 		if (ec != EXIT_SUCCESS) return ec;
-
+		
 
 		auto drawMovedPath = [](MjSim& mj, Path& path, const Position& pos, const float rgba[4]) -> int {
 			if((path.points.back().point - pos).norm2()>0.0001) {
