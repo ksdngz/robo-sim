@@ -4,6 +4,7 @@
 #include <cstring>
 #include <cmath>
 #include <array>
+#include <initializer_list>
 #include <vector>
 #include <GLFW/glfw3.h>
 #include <mujoco/mujoco.h>
@@ -17,6 +18,12 @@ public:
 	double y;
 	double z;
 
+	// constructors (rule of five minimal set)
+	Position() = default;
+	Position(double x_, double y_, double z_) : x(x_), y(y_), z(z_) {}
+	Position(const Position&) = default;
+	Position(Position&&) noexcept = default;
+
 	Position operator+(const Position& rhs) const {
 		return {x + rhs.x, y + rhs.y, z + rhs.z};
 	}
@@ -29,6 +36,35 @@ public:
 	double norm2() const {
 		return std::sqrt(x * x + y * y + z * z);
 	}
+
+	// -------- assignment operators --------
+	// assignment operators
+	Position& operator=(const Position& other) = default;
+	Position& operator=(Position&& other) noexcept = default;
+	// assign from std::array<double,3>
+	Position& operator=(const std::array<double,3>& arr) {
+		x = arr[0]; y = arr[1]; z = arr[2];
+		return *this;
+	}
+	// assign from initializer_list<double> of size 3: {x,y,z}
+	Position& operator=(std::initializer_list<double> list) {
+		if (list.size() == 3) {
+			auto it = list.begin();
+			x = *it++; y = *it++; z = *it;
+		}
+		return *this;
+	}
+
+	// -------- compound assignment --------
+	Position& operator+=(const Position& rhs) { x+=rhs.x; y+=rhs.y; z+=rhs.z; return *this; }
+	Position& operator-=(const Position& rhs) { x-=rhs.x; y-=rhs.y; z-=rhs.z; return *this; }
+	Position& operator*=(double s) { x*=s; y*=s; z*=s; return *this; }
+	Position& operator/=(double s) { x/=s; y/=s; z/=s; return *this; }
+
+	// non-const returning scalar ops
+	friend Position operator*(Position lhs, double s){ lhs*=s; return lhs; }
+	friend Position operator*(double s, Position rhs){ rhs*=s; return rhs; }
+	friend Position operator/(Position lhs, double s){ lhs/=s; return lhs; }
 };
 
 using WayPoints = std::vector<Position>;
@@ -265,6 +301,30 @@ private:
 	int index_;
 };
 
+// 二次遅れ制御系（Position型対応）
+class SecondOrderDynamics {
+public:
+	// パラメータ: 減衰比 zeta, 固有角振動数 omega
+	double zeta;
+	double omega; // rad/s
+	Position y;    // 出力（位置）
+	Position yd;   // 一階微分（速度）
+
+	SecondOrderDynamics(double zeta_, double omega_, const Position& initp)
+		: zeta(zeta_), omega(omega_), y(initp), yd{0,0,0} {}
+
+	// ref: 参照入力, dt: 制御周期
+	// 連続系: y'' + 2*zeta*omega*y' + omega^2 * y = omega^2 * ref
+	// 数値積分: 前進オイラー（必要なら改良オイラー/Runge-Kuttaへ拡張可）
+	Position update(const Position& ref, double dt) {
+		// ydd = ω^2 (ref - y) - 2 ζ ω yd
+		Position ydd = (ref - y) * (omega * omega) - yd * (2.0 * zeta * omega);
+		yd += ydd * dt;
+		y  += yd * dt;
+		return y;
+	}
+};
+
 int main(int argc, const char** argv) {
 
 	// モデルファイルパスを決定
@@ -331,13 +391,11 @@ int main(int argc, const char** argv) {
 //		ec = drawSpline(mj, blueSph_wp, CLR_PURPLE);
 //		if (ec != EXIT_SUCCESS) return ec;
 
+	// redSph
+	SecondOrderDynamics redSph(1.0, 1.0, {0.0, 0.0, 0.0});
 	ec = drawSpline(mj, wp2, CLR_PURPLE);
 	if (ec != EXIT_SUCCESS) return ec;
 
-	// draw sphere
-	Position p_leader = {1.0, 0.0, 0.0};
-	ec = drawSph(mj, p_leader, RADIUS_SPH, CLR_RED);
-	if (ec != EXIT_SUCCESS) return ec;
 
 
 	// run main loop, target real-time simulation and 60 fps rendering
@@ -352,7 +410,6 @@ int main(int argc, const char** argv) {
 		// Update the scene first (this resets scn.ngeom)
 		mjv_updateScene(mj.m, mj.d, &mj.opt, NULL, &mj.cam, mjCAT_ALL, &mj.scn);
 
-		printf("ngeom pre: %d\n", mj.scn.ngeom);
 
 		// draw blue sphere and the moved path
 		Position pos_blueSph = blueSphPathReader.update();
@@ -365,7 +422,14 @@ int main(int argc, const char** argv) {
 		ec = drawPath(mj, blueSphMovedPath, CLR_YELLOW);
 		if (ec != EXIT_SUCCESS) return ec;
 
-		printf("ngeom: %d\n", mj.scn.ngeom);
+
+		// draw red sphere
+		double dt = mj.d->time - simstart;
+		Position pos_redSph = redSph.update(pos_blueSph, dt);
+		ec = drawSph(mj, pos_redSph, RADIUS_SPH, CLR_RED);
+		if (ec != EXIT_SUCCESS) return ec;
+
+		printf("dt: %f, ngeom: %d\n", dt, mj.scn.ngeom);
 
 		mj.opt.label = mjLABEL_GEOM;
 		mjv_addGeoms(mj.m, mj.d, &mj.opt, NULL, mjCAT_DECOR, &mj.scn);
