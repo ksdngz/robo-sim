@@ -1,4 +1,4 @@
-@echo off
+@echo on
 REM Bootstrap script: download MuJoCo and build with MSBuild and ClangCL (Visual Studio Generator)
 
 REM === Download MuJoCo (PowerShell) ===
@@ -42,6 +42,48 @@ if exist %EIGEN_DIR%\Eigen\Dense (
     move third_party\eigen-%EIGEN_VER% %EIGEN_DIR%
     del %EIGEN_ZIP%
     echo Eigen installed in %EIGEN_DIR%
+)
+
+REM === Install Embedded Python (minimal, embeddable distribution) and required pip packages ===
+set PYTHON_VER=3.10.9
+set PYTHON_ZIP=python-%PYTHON_VER%-embed-amd64.zip
+set PYTHON_URL=https://www.python.org/ftp/python/%PYTHON_VER%/%PYTHON_ZIP%
+set PYTHON_DIR=third_party\python
+
+if exist "%PYTHON_DIR%\python.exe" (
+	echo Embedded Python already installed in %PYTHON_DIR%
+) else (
+	echo Downloading Embedded Python %PYTHON_VER%
+	powershell -Command "Invoke-WebRequest -Uri %PYTHON_URL% -OutFile %PYTHON_ZIP%"
+	echo Extracting Embedded Python ...
+	powershell -Command "Expand-Archive -Path %PYTHON_ZIP% -DestinationPath %PYTHON_DIR%"
+	del %PYTHON_ZIP%
+	echo Embedded Python installed in %PYTHON_DIR%
+)
+
+REM Ensure pip + setuptools + wheel are available in the embedded Python
+if exist "%PYTHON_DIR%\python.exe" (
+	echo Enabling pip in embedded Python...
+	%PYTHON_DIR%\python.exe -m ensurepip --default-pip || (
+		echo ensurepip failed, attempting to bootstrap get-pip.py
+		powershell -Command "Invoke-WebRequest -Uri https://bootstrap.pypa.io/get-pip.py -OutFile get-pip.py"
+		%PYTHON_DIR%\python.exe get-pip.py
+		del get-pip.py
+	)
+	echo Upgrading pip/setuptools/wheel
+	%PYTHON_DIR%\python.exe -m pip install --upgrade pip setuptools wheel
+
+	REM Install common scientific packages used for plotting
+	echo Installing numpy and matplotlib into embedded Python - this may take a while...
+	%PYTHON_DIR%\python.exe -m pip install numpy matplotlib
+	echo pip install finished
+)
+
+REM Create a simple matplotlibrc to force Agg backend (headless) to avoid GUI backend issues
+if exist "%PYTHON_DIR%\python.exe" (
+	echo Creating matplotlibrc to use Agg - headless
+	echo backend : Agg > "%PYTHON_DIR%\matplotlibrc"
+	echo matplotlibrc created at %PYTHON_DIR%\matplotlibrc
 )
 
 REM === Settings: Visual Studio Generator with ClangCL ===
