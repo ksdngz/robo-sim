@@ -420,6 +420,7 @@ int main(int argc, const char** argv) {
 
 	printf("Timestep: %f seconds\n", mj.m->opt.timestep);
 
+/*
 	// --- Embedded Python: create a quick plot via matplotlib to verify embedding ---
 	// This will produce 'cpp_plot.png' in the current working directory.
 	auto runPythonMatplotlibSample = []() -> bool {
@@ -459,6 +460,7 @@ print('cpp_plot.png saved')
 	} else {
 		printf("Embedded matplotlib sample written: cpp_plot.png\n");
 	}
+*/
 
 	// WayPoints Definition
 	WayPoints blueSph_wp = {
