@@ -1,4 +1,3 @@
-
 # Script to download and extract MuJoCo 3.3.5 Windows binary
 # Usage: powershell -ExecutionPolicy Bypass -File scripts/download_mujoco.ps1
 

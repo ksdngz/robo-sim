@@ -10,6 +10,8 @@
 #include <mujoco/mujoco.h>
 #include <Eigen/Dense>
 #include <unsupported/Eigen/Splines>
+// Embedding Python
+#include <Python.h>
 
 // Spline alias (3D)
 using Spline3d = Eigen::Spline<double, 3>;
@@ -418,6 +420,46 @@ int main(int argc, const char** argv) {
 
 	printf("Timestep: %f seconds\n", mj.m->opt.timestep);
 
+	// --- Embedded Python: create a quick plot via matplotlib to verify embedding ---
+	// This will produce 'cpp_plot.png' in the current working directory.
+	auto runPythonMatplotlibSample = []() -> bool {
+		// Initialize Python interpreter if not already
+		if (!Py_IsInitialized()) {
+			Py_Initialize();
+		}
+		const char* script = R"PY(
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
+x = np.linspace(0, 10, 200)
+y = np.sin(x)
+plt.figure()
+plt.plot(x, y)
+plt.title('Embedded Python plot from C++')
+plt.xlabel('x')
+plt.ylabel('sin(x)')
+plt.savefig('cpp_plot.png')
+print('cpp_plot.png saved')
+)PY";
+		int rc = PyRun_SimpleString(script);
+		if (rc != 0) {
+			fprintf(stderr, "Embedded python script failed with code %d\n", rc);
+			// Attempt to finalize interpreter anyway
+			if (Py_IsInitialized()) Py_FinalizeEx();
+			return false;
+		}
+		// Finalize python interpreter
+		if (Py_IsInitialized()) Py_FinalizeEx();
+		return true;
+	};
+
+	if (!runPythonMatplotlibSample()) {
+		fprintf(stderr, "Warning: embedded matplotlib sample failed\n");
+	} else {
+		printf("Embedded matplotlib sample written: cpp_plot.png\n");
+	}
+
 	// WayPoints Definition
 	WayPoints blueSph_wp = {
 		{0.0, 0.0, 0.0},
@@ -490,7 +532,7 @@ int main(int argc, const char** argv) {
 		ec = drawMovedPath(mj, greenSphMovedPath, pos_greenSph, CLR_GREEN);
 		if (ec != EXIT_SUCCESS) return ec;
 
-		printf("dt: %f, ngeom: %d\n", dt, mj.scn.ngeom);
+//		printf("dt: %f, ngeom: %d\n", dt, mj.scn.ngeom);
 
 		mj.opt.label = mjLABEL_GEOM;
 		mjv_addGeoms(mj.m, mj.d, &mj.opt, NULL, mjCAT_DECOR, &mj.scn);

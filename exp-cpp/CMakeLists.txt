@@ -49,24 +49,51 @@ if (WIN32)
     endif()
 endif()
 
-# --- Python detection (try embedded python first, then system) ---
+# --- Enforce usage of embedded Python only (no system fallback) ---
 set(EMBED_PYTHON_DIR "${CMAKE_SOURCE_DIR}/third_party/python")
-if (EXISTS "${EMBED_PYTHON_DIR}/python.exe")
-    message(STATUS "Attempting to use embedded Python at ${EMBED_PYTHON_DIR}")
-    # Try to find Python using embedded directory as hint (do not restrict to only this path yet)
-    find_package(Python3 COMPONENTS Interpreter Development HINTS "${EMBED_PYTHON_DIR}" PATHS "${EMBED_PYTHON_DIR}")
-    if (NOT Python3_FOUND)
-        message(STATUS "Embedded Python not fully discoverable; falling back to system Python3 discovery")
-        find_package(Python3 COMPONENTS Interpreter Development)
-    endif()
-else()
-    find_package(Python3 COMPONENTS Interpreter Development)
+
+if (NOT EXISTS "${EMBED_PYTHON_DIR}/python.exe")
+    message(FATAL_ERROR "Embedded Python not found at ${EMBED_PYTHON_DIR}. Run bootstrap.bat to install it.")
 endif()
 
-if (Python3_FOUND)
-    message(STATUS "Using Python3: ${Python3_EXECUTABLE}")
-    target_include_directories(simple_sim PRIVATE ${Python3_INCLUDE_DIRS})
-    target_link_libraries(simple_sim PRIVATE ${Python3_LIBRARIES})
-else()
-    message(WARNING "No embedded Python found and system Python3 not found. Python plotting will be disabled.")
+# Determine import library (support common names across minor versions)
+set(_PY_CANDIDATE_LIBS
+    "${EMBED_PYTHON_DIR}/python310.lib"
+    "${EMBED_PYTHON_DIR}/python311.lib"
+    "${EMBED_PYTHON_DIR}/python39.lib"
+    "${EMBED_PYTHON_DIR}/libs/python310.lib"   # legacy layout safety
+    "${EMBED_PYTHON_DIR}/libs/python39.lib"
+)
+set(_PY_LINK "")
+foreach(lib ${_PY_CANDIDATE_LIBS})
+    if (EXISTS "${lib}")
+        set(_PY_LINK "${lib}")
+        break()
+    endif()
+endforeach()
+
+if (NOT _PY_LINK)
+    message(FATAL_ERROR "No suitable Python import library (e.g., python310.lib or python39.lib) found in ${EMBED_PYTHON_DIR}. Ensure bootstrap copied the .lib file.")
 endif()
+
+# Header path: only support ${EMBED_PYTHON_DIR}/Include
+set(_PY_INCLUDE_DIR "${EMBED_PYTHON_DIR}/Include")
+if (EXISTS "${_PY_INCLUDE_DIR}/Python.h")
+    target_include_directories(simple_sim PRIVATE "${_PY_INCLUDE_DIR}")
+else()
+    message(FATAL_ERROR "Python headers not found at ${_PY_INCLUDE_DIR}. Run bootstrap.bat to fetch headers.")
+endif()
+
+target_link_libraries(simple_sim PRIVATE "${_PY_LINK}")
+
+if (WIN32)
+    # Suppress search for non-existent debug import libraries (common for embeddable distro)
+    target_link_options(simple_sim PRIVATE 
+        $<$<CONFIG:Debug>:/NODEFAULTLIB:python39_d.lib>
+        $<$<CONFIG:Debug>:/NODEFAULTLIB:python310_d.lib>
+        $<$<CONFIG:Debug>:/NODEFAULTLIB:python311_d.lib>
+    )
+endif()
+
+message(STATUS "Embedded Python library: ${_PY_LINK}")
+message(STATUS "Embedded Python includes: ${_PY_INCLUDE_DIR}")

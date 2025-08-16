@@ -61,6 +61,18 @@ if exist "%PYTHON_DIR%\python.exe" (
 	echo Embedded Python installed in %PYTHON_DIR%
 )
 
+REM Ensure python import library (python39.lib) exists at %PYTHON_DIR% (copy from scripts/download_python if missing)
+if not exist "%PYTHON_DIR%\python39.lib" (
+	if exist "scripts\download_python\python39.lib" (
+		echo Copying python39.lib into %PYTHON_DIR%
+		copy /Y "scripts\download_python\python39.lib" "%PYTHON_DIR%\python39.lib" >NUL
+	) else (
+		echo Warning: scripts\download_python\python39.lib not found. Python linking may fail.
+	)
+) else (
+	echo python39.lib already present in %PYTHON_DIR%
+)
+
 REM Ensure pip + setuptools + wheel are available in the embedded Python
 if exist "%PYTHON_DIR%\python.exe" (
 	echo Enabling pip in embedded Python...
@@ -96,8 +108,62 @@ if exist "%PYTHON_DIR%\python.exe" (
 REM Create a simple matplotlibrc to force Agg backend (headless) to avoid GUI backend issues
 if exist "%PYTHON_DIR%\python.exe" (
 	echo Creating matplotlibrc to use Agg - headless
-	echo backend : Agg > "%PYTHON_DIR%\matplotlibrc"
+	echo backend : Agg ^> "%PYTHON_DIR%\matplotlibrc"
 	echo matplotlibrc created at %PYTHON_DIR%\matplotlibrc
+)
+
+REM === Ensure Python C API headers: if Include dir absent, download source and copy ===
+set PY_INCLUDE_DIR=%PYTHON_DIR%\Include
+if exist "%PY_INCLUDE_DIR%\Python.h" (
+	echo Python headers present: %PY_INCLUDE_DIR%
+) else (
+	call :DOWNLOAD_PY_HEADERS
+)
+
+goto :AFTER_PY_HEADERS
+
+:DOWNLOAD_PY_HEADERS
+echo Python headers not found. Downloading source archive...
+set PY_SRC_TGZ=Python-%PYTHON_VER%.tgz
+powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/%PYTHON_VER%/Python-%PYTHON_VER%.tgz' -OutFile '%PY_SRC_TGZ%' | Out-Null" || (
+	echo Failed to download Python source archive & goto :CLEANUP_PY_HEADERS
+)
+if not exist "%PY_SRC_TGZ%" (
+	echo Archive file %PY_SRC_TGZ% not found after download & goto :CLEANUP_PY_HEADERS
+)
+if exist py_src_tmp rmdir /s /q py_src_tmp
+mkdir py_src_tmp
+tar -xf "%PY_SRC_TGZ%" -C py_src_tmp 2>NUL || (
+	echo tar extraction failed & goto :CLEANUP_PY_HEADERS
+)
+if exist py_src_tmp\Python-%PYTHON_VER%\Include (
+	echo Copying headers into %PY_INCLUDE_DIR%
+	if not exist "%PY_INCLUDE_DIR%" mkdir "%PY_INCLUDE_DIR%"
+	xcopy /E /I /Y py_src_tmp\Python-%PYTHON_VER%\Include %PY_INCLUDE_DIR% >NUL
+	echo Python headers installed.
+) else (
+	echo Failed to locate extracted Include directory ^(py_src_tmp\Python-%PYTHON_VER%\Include ^). Install manually if build fails.
+)
+
+:CLEANUP_PY_HEADERS
+del "%PY_SRC_TGZ%" 2>NUL
+rmdir /s /q py_src_tmp 2>NUL
+goto :eof
+
+:AFTER_PY_HEADERS
+
+REM Ensure pyconfig.h exists (copy from scripts\download_python if available)
+if not exist "%PY_INCLUDE_DIR%\pyconfig.h" (
+	if exist "scripts\download_python\pyconfig.h" (
+		echo Copying pyconfig.h into %PY_INCLUDE_DIR%
+		if not exist "%PY_INCLUDE_DIR%" mkdir "%PY_INCLUDE_DIR%"
+		copy /Y "scripts\download_python\pyconfig.h" "%PY_INCLUDE_DIR%\pyconfig.h" >NUL
+		echo pyconfig.h copied.
+	) else (
+		echo Warning: scripts\download_python\pyconfig.h not found; pyconfig.h still missing.
+	)
+) else (
+	echo pyconfig.h already present.
 )
 
 REM === Settings: Visual Studio Generator with ClangCL ===
