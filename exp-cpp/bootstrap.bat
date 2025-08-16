@@ -77,6 +77,20 @@ if exist "%PYTHON_DIR%\python.exe" (
 	echo Installing numpy and matplotlib into embedded Python - this may take a while...
 	%PYTHON_DIR%\python.exe -m pip install numpy matplotlib
 	echo pip install finished
+
+	REM --- Ensure embeddable Python can load site-packages by enabling 'import site' in the _pth file ---
+	echo Checking for embeddable _pth file and enabling import site if needed
+	powershell -NoProfile -Command "$pth = Get-ChildItem -Path '%PYTHON_DIR%' -Filter '*_pth' -File -ErrorAction SilentlyContinue | Select-Object -First 1; if ($pth) { Copy-Item $pth.FullName ($pth.FullName + '.bak') -Force; (Get-Content $pth.FullName) -replace '^[#\s]*import site','import site' | Set-Content $pth.FullName; Write-Output 'patched:' + $pth.FullName } else { Write-Output 'no_pth_found' }"
+
+	REM Temporarily add Scripts folder to PATH for this script execution so pip scripts are callable
+	set "PATH=%PYTHON_DIR%\Scripts;%PATH%"
+	echo Scripts folder added to PATH for this run
+
+	REM Re-run pip install to ensure packages are available after enabling site
+	echo Reinstalling numpy and matplotlib to ensure availability
+	%PYTHON_DIR%\python.exe -m pip install --upgrade pip setuptools wheel
+	%PYTHON_DIR%\python.exe -m pip install --no-warn-script-location --upgrade numpy matplotlib
+	echo pip reinstall finished
 )
 
 REM Create a simple matplotlibrc to force Agg backend (headless) to avoid GUI backend issues
