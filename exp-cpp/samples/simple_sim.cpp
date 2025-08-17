@@ -8,6 +8,7 @@
 #include <vector>
 #include <GLFW/glfw3.h>
 #include <mujoco/mujoco.h>
+#include <mujoco/mjui.h>
 #include <Eigen/Dense>
 #include <unsupported/Eigen/Splines>
 // Embedding Python
@@ -89,6 +90,75 @@ public:
 	double lasty = 0;
 };
 MjSim mj;
+
+// UI state for spline toggle
+static int show_spline = 1; // 1=ON, 0=OFF
+static mjUI ui0;            // single UI panel
+static mjuiState uistate;   // state
+
+// Build minimal UI with a radio button group to toggle spline visibility
+static void build_ui(const mjrContext* con) {
+	mjuiDef def[] = {
+		{ mjITEM_SECTION, "Display", 0, nullptr, "" },
+		{ mjITEM_RADIO,   "Spline", 1, &show_spline, "Off\nOn" },
+		{ mjITEM_END,     "", 0, nullptr, "" }
+	};
+	mjui_add(&ui0, def);
+	if (ui0.nsect > 0) ui0.sect[0].state = mjSECT_OPEN; // セクション展開
+	ui0.spacing = mjui_themeSpacing(0);
+	ui0.color   = mjui_themeColor(0);
+	mjui_resize(&ui0, con);
+}
+
+// Simple mouse->ui event helper (minimal subset)
+static void process_ui_events(GLFWwindow* window, const mjrContext* con, int fbw, int fbh) {
+	static int prev_left = 0;
+	double x,y; glfwGetCursorPos(window,&x,&y);
+	int w=fbw, h=fbh; // framebufferサイズ使用
+	memset(&uistate, 0, sizeof(uistate));
+	// rect[0]=全体, rect[1]=UI, rect[2]=3D表示領域
+	uistate.nrect = 3;
+	uistate.rect[0].left = 0; uistate.rect[0].bottom = 0; uistate.rect[0].width = w; uistate.rect[0].height = h;
+	uistate.rect[1].left = 0; uistate.rect[1].bottom = 0; uistate.rect[1].width = ui0.width; uistate.rect[1].height = h;
+	int remain = w - ui0.width; if(remain<0) remain = 0;
+	uistate.rect[2].left = ui0.width; uistate.rect[2].bottom = 0; uistate.rect[2].width = remain; uistate.rect[2].height = h;
+	uistate.x = (int)x;
+	uistate.y = h - (int)y;
+	int left_now = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT)==GLFW_PRESS);
+	int uiwidth = ui0.width;
+	bool in_ui = (uistate.x < uiwidth);
+	// UIはrectid=1を使用
+	uistate.mouserect = in_ui ? ui0.rectid : -1;
+	if (left_now && !prev_left) { uistate.type = mjEVENT_PRESS; uistate.button = mjBUTTON_LEFT; }
+	else if (!left_now && prev_left) { uistate.type = mjEVENT_RELEASE; uistate.button = mjBUTTON_LEFT; }
+	else uistate.type = mjEVENT_MOVE;
+	uistate.left = left_now;
+	if (in_ui && uistate.type != mjEVENT_MOVE) {
+		mjui_event(&ui0, &uistate, con); // show_spline更新
+	}
+	prev_left = left_now;
+}
+
+// Minimal per-frame UI maintenance (resize + update) similar to simulate's UiModify
+// simple layout: rect[0]=full window, rect[1]=UI, rect[2]=3D viewport
+static void ui_per_frame(mjrContext* con, int fbw, int fbh);
+
+// ui_per_frame 定義（毎フレーム UI サイズと補助FBO確認）
+static void ui_per_frame(mjrContext* con, int fbw, int fbh) {
+	mjui_resize(&ui0, con);
+	int id = ui0.auxid;
+	if (con->auxFBO[id] == 0 ||
+		con->auxFBO_r[id] == 0 ||
+		con->auxColor[id] == 0 ||
+		con->auxColor_r[id] == 0 ||
+		con->auxWidth[id] != ui0.width ||
+		con->auxHeight[id] != ui0.maxheight ||
+		con->auxSamples[id] != ui0.spacing.samples) {
+		mjr_addAux(id, ui0.width, ui0.maxheight, ui0.spacing.samples, con);
+	}
+	// UIレイアウト（rect[1]使用）
+	mjui_update(-1, -1, &ui0, &uistate, con);
+}
 
 struct PathPoint
 {
@@ -407,10 +477,27 @@ int main(int argc, const char** argv) {
 	mjv_defaultScene(&mj.scn);
 	mjr_defaultContext(&mj.con);
 
+	// init simple UI
+	memset(&ui0,0,sizeof(ui0));
+	ui0.spacing = mjui_themeSpacing(0);
+	ui0.color = mjui_themeColor(0);
+	ui0.predicate = NULL;
+	ui0.rectid = 1; // rect[1] をUI用に確保
+	ui0.auxid = 0;
+	// make OpenGL context (later) before building UI so we have font metrics
+
 	// create scene and context
 	mjv_makeScene(mj.m, &mj.scn, 2000);
 	mj.scn.flags[mjCAT_DECOR] = 1;
 	mjr_makeContext(mj.m, &mj.con, mjFONTSCALE_150);
+	build_ui(&mj.con);
+
+	// カメラ初期化: モデル中心とスケールに基づき俯瞰
+	mj_forward(mj.m, mj.d);
+	for(int i=0;i<3;i++) mj.cam.lookat[i] = mj.m->stat.center[i];
+	mj.cam.distance = 2.0 * mj.m->stat.extent;
+	mj.cam.elevation = -20.0;
+	mj.cam.azimuth = 90.0;
 
 	// install GLFW mouse and keyboard callbacks
 	glfwSetKeyCallback(window, keyboard);
@@ -495,16 +582,21 @@ print('cpp_plot.png saved')
 		while (mj.d->time - simstart < 1.0/60.0) {
 			mj_step(mj.m, mj.d);
 		}
-		mjrRect viewport = {0, 0, 0, 0};
-		glfwGetFramebufferSize(window, &viewport.width, &viewport.height);
+	mjrRect viewport_full = {0, 0, 0, 0};
+	glfwGetFramebufferSize(window, &viewport_full.width, &viewport_full.height);
+	process_ui_events(window, &mj.con, viewport_full.width, viewport_full.height);
+	ui_per_frame(&mj.con, viewport_full.width, viewport_full.height);
 
 		// Update the scene first (this resets scn.ngeom)
 		mjv_updateScene(mj.m, mj.d, &mj.opt, NULL, &mj.cam, mjCAT_ALL, &mj.scn);
 
+
 		double dt = mj.d->time - simstart;
 		int ec = EXIT_SUCCESS;
-		ec = drawSpline(mj, blueSph_wp, CLR_YELLOW);
-		if (ec != EXIT_SUCCESS) return ec;
+		if (show_spline) {
+			ec = drawSpline(mj, blueSph_wp, CLR_YELLOW);
+			if (ec != EXIT_SUCCESS) return ec;
+		}
 
 		// draw spheres and the moved path
 		// blue sphere
@@ -538,7 +630,12 @@ print('cpp_plot.png saved')
 
 		mj.opt.label = mjLABEL_GEOM;
 		mjv_addGeoms(mj.m, mj.d, &mj.opt, NULL, mjCAT_DECOR, &mj.scn);
-		mjr_render(viewport, &mj.scn, &mj.con);
+
+		// 3D表示領域 (rect[2]) へ描画
+		mjrRect view3d = uistate.rect[2];
+		mjr_render(view3d, &mj.scn, &mj.con);
+		// UIを最後に描画
+		mjui_render(&ui0, &uistate, &mj.con);
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 
