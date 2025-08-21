@@ -31,6 +31,37 @@ include_directories(${EIGEN_DIR})
 set(EIGEN_UNSUPPORTED_DIR "${CMAKE_SOURCE_DIR}/third_party/eigen/unsupported")
 include_directories(${EIGEN_UNSUPPORTED_DIR})
 
+# ---------------- OMPL (optional) ----------------
+set(OMPL_INSTALL_DIR "${CMAKE_SOURCE_DIR}/third_party/ompl/install")
+if (EXISTS "${OMPL_INSTALL_DIR}/share/ompl/cmake/omplConfig.cmake")
+    list(APPEND CMAKE_PREFIX_PATH "${OMPL_INSTALL_DIR}")
+    find_package(ompl CONFIG QUIET)
+    if (ompl_FOUND)
+        message(STATUS "OMPL found: ${ompl_INCLUDE_DIRS}")
+        add_executable(path_plan samples/path_plan.cpp)
+        target_include_directories(path_plan PRIVATE ${ompl_INCLUDE_DIRS} ${EIGEN_DIR} ${EIGEN_UNSUPPORTED_DIR} ${MUJOCO_ROOT}/include)
+        target_link_directories(path_plan PRIVATE ${MUJOCO_ROOT}/lib)
+        target_link_libraries(path_plan PRIVATE ompl::ompl mujoco "${GLFW_ROOT}/lib/glfw3.lib")
+        target_compile_features(path_plan PRIVATE cxx_std_17)
+        if (WIN32)
+            add_custom_command(TARGET path_plan POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${MUJOCO_ROOT}/mujoco.dll"
+                    $<TARGET_FILE_DIR:path_plan>)
+            if (EXISTS "${EMBED_PYTHON_DIR}/python310.dll")
+                add_custom_command(TARGET path_plan POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                        "${EMBED_PYTHON_DIR}/python310.dll"
+                        $<TARGET_FILE_DIR:path_plan>)
+            endif()
+        endif()
+    else()
+        message(WARNING "OMPL install dir present but find_package(ompl) failed; path_plan target not built")
+    endif()
+else()
+    message(STATUS "OMPL not found (expected at ${OMPL_INSTALL_DIR}); path_plan target will be skipped")
+endif()
+
 # For Windows: copy DLL to output dir after build
 if (WIN32)
     add_custom_command(TARGET simple_sim POST_BUILD
