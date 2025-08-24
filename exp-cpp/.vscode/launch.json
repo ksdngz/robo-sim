@@ -11,32 +11,6 @@
             "cwd": "${workspaceFolder}/build",
             "environment": [],
             "console": "externalTerminal"
-        },
-        {
-            "name": "Debug path_plan.exe (Debug)",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/Debug/path_plan.exe",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/build/Debug",
-            "environment": [
-                { "name": "PATH", "value": "${env:PATH};${workspaceFolder}\\mujoco-3.3.5;${workspaceFolder}\\third_party\\python" }
-            ],
-            "console": "externalTerminal"
-        },
-        {
-            "name": "Launch path_plan.exe (Release)",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/Release/path_plan.exe",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/build/Release",
-            "environment": [
-                { "name": "PATH", "value": "${env:PATH};${workspaceFolder}\\mujoco-3.3.5;${workspaceFolder}\\third_party\\python" }
-            ],
-            "console": "externalTerminal"
         }
     ]
 }

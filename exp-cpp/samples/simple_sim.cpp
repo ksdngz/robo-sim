@@ -14,6 +14,8 @@
 // Embedding Python
 #include <Python.h>
 
+#include "./constraint_path_planner.hpp"
+
 // Spline alias (3D)
 using Spline3d = Eigen::Spline<double, 3>;
 
@@ -548,6 +550,9 @@ print('cpp_plot.png saved')
 		printf("Embedded matplotlib sample written: cpp_plot.png\n");
 	}
 */
+	// Create Path planner 
+	auto constraintPathPlanner = std::make_shared<ConstraintPathPlanner>();
+	int result = constraintPathPlanner->plan();
 
 	// WayPoints Definition
 	WayPoints blueSph_wp = {
