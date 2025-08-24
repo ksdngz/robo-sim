@@ -1,4 +1,5 @@
 #include <mujoco/mujoco.h>
+#include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/geometric/SimpleSetup.h>
 #include <ompl/geometric/planners/rrt/RRTConnect.h>
 #include <Eigen/Dense>
@@ -82,7 +83,7 @@ std::vector<Eigen::Vector3d> fitArc(const std::vector<Eigen::Vector3d>& pts) {
 
 int main(int argc,char** argv){
     if(argc<2){ std::cerr<<"Usage: "<<argv[0]<<" model.xml\n"; return 1;}
-    mj_activate("mjkey.txt");
+//    mj_activate("mjkey.txt");
     m = mj_loadXML(argv[1], nullptr, nullptr, 0);
     if(!m){ std::cerr<<"Model load failed\n"; return 1;}
     d = mj_makeData(m);
@@ -102,7 +103,7 @@ int main(int argc,char** argv){
     ss.setStartAndGoalStates(start, goal);
 
     if(ss.solve(1.0)) {
-        auto path = ss.getSolutionPath().asGeometric();
+        const auto& path = ss.getSolutionPath();
 
         // FKでEE位置列に変換
         std::vector<Eigen::Vector3d> ee_pts;
@@ -127,6 +128,6 @@ int main(int argc,char** argv){
 
     mj_deleteData(d);
     mj_deleteModel(m);
-    mj_deactivate();
+//    mj_deactivate();
     return 0;
 }
