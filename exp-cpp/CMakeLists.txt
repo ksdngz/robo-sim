@@ -51,8 +51,12 @@ target_link_directories(path_plan
 target_link_libraries(path_plan 
 	PRIVATE
 	"${ompl_INCLUDE_LIBS}/ompl.lib"
-	"${boost_INCLUDE_LIBS}/libboost_serialization-vc143-mt-1_84.lib"
-	"${boost_INCLUDE_LIBS}/libboost_program_options-vc143-mt-1_84.lib"
+#	For Debug
+	"${boost_INCLUDE_LIBS}/libboost_serialization-vc143-mt-gd-1_84.lib"
+	"${boost_INCLUDE_LIBS}/libboost_program_options-vc143-mt-gd-1_84.lib"
+#	For Release
+#	"${boost_INCLUDE_LIBS}/libboost_serialization-vc143-mt-1_84.lib"
+#	"${boost_INCLUDE_LIBS}/libboost_program_options-vc143-mt-1_84.lib"
 	mujoco
 	"${GLFW_ROOT}/lib/glfw3.lib"
 )

@@ -1,3 +1,8 @@
+param(
+  [ValidateSet('Release','Debug','RelWithDebInfo','MinSizeRel')]
+  [string]$Config = 'Release'
+)
+
 # OMPL build/install helper (PowerShell)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -29,17 +34,19 @@ if (Test-Path $boostLibBuild) {
   $boostLib  = $boostLibBuild
 } elseif (Test-Path $boostLibStage) {
   $boostRoot = $boostStageRoot
-  $boostInc  = Join-Path $boostStageRoot 'boost'
+  # For staged Boost, the include dir should be the root that contains the 'boost' folder
+  $boostInc  = $boostStageRoot
   $boostLib  = $boostLibStage
 } else {
   throw "Boost libraries not found. Expected one of: `n  $boostLibBuild`n  $boostLibStage"
 }
 
 $omplSrc     = Join-Path $tp 'ompl'
-$omplBuild   = Join-Path $omplSrc 'build\Release'
+$omplBuild   = Join-Path $omplSrc ("build\" + $Config)
 $omplPrefix  = Join-Path $omplSrc 'install'
 
 Write-Host "Repo:        $repo"
+Write-Host "Config:      $Config"
 Write-Host "Eigen src:   $eigenSrc"
 Write-Host "Eigen cfg:   $eigenCfg"
 Write-Host "Boost inc:   $boostInc"
@@ -67,12 +74,21 @@ foreach ($c in $need) {
   if (-not $found) { throw "Boost $c .lib not found in: $boostLib" }
 }
 
-# Prefer non-debug, multithreaded, toolset-tagged import libs
-$poLib = Get-ChildItem -Path $boostLib -Filter 'boost_program_options-vc143-mt-*.lib' | Where-Object { $_.Name -notmatch '-gd-' } | Select-Object -First 1
-if (-not $poLib) { $poLib = Get-ChildItem -Path $boostLib -Filter 'libboost_program_options-vc143-mt-*.lib' | Where-Object { $_.Name -notmatch '-gd-' } | Select-Object -First 1 }
-$serLib = Get-ChildItem -Path $boostLib -Filter 'boost_serialization-vc143-mt-*.lib' | Where-Object { $_.Name -notmatch '-gd-' } | Select-Object -First 1
-if (-not $serLib) { $serLib = Get-ChildItem -Path $boostLib -Filter 'libboost_serialization-vc143-mt-*.lib' | Where-Object { $_.Name -notmatch '-gd-' } | Select-Object -First 1 }
-if (-not $poLib -or -not $serLib) { throw "Could not resolve Boost component libs in $boostLib" }
+# Choose appropriate Boost import libs based on configuration (Debug uses '-gd-' tag)
+$isDebug = ($Config -eq 'Debug')
+if ($isDebug) {
+  $poLib = Get-ChildItem -Path $boostLib -Filter 'boost_program_options-vc143-mt-gd-*.lib' | Select-Object -First 1
+  if (-not $poLib) { $poLib = Get-ChildItem -Path $boostLib -Filter 'libboost_program_options-vc143-mt-gd-*.lib' | Select-Object -First 1 }
+  $serLib = Get-ChildItem -Path $boostLib -Filter 'boost_serialization-vc143-mt-gd-*.lib' | Select-Object -First 1
+  if (-not $serLib) { $serLib = Get-ChildItem -Path $boostLib -Filter 'libboost_serialization-vc143-mt-gd-*.lib' | Select-Object -First 1 }
+} else {
+  # Prefer non-debug, multithreaded, toolset-tagged import libs
+  $poLib = Get-ChildItem -Path $boostLib -Filter 'boost_program_options-vc143-mt-*.lib' | Where-Object { $_.Name -notmatch '-gd-' } | Select-Object -First 1
+  if (-not $poLib) { $poLib = Get-ChildItem -Path $boostLib -Filter 'libboost_program_options-vc143-mt-*.lib' | Where-Object { $_.Name -notmatch '-gd-' } | Select-Object -First 1 }
+  $serLib = Get-ChildItem -Path $boostLib -Filter 'boost_serialization-vc143-mt-*.lib' | Where-Object { $_.Name -notmatch '-gd-' } | Select-Object -First 1
+  if (-not $serLib) { $serLib = Get-ChildItem -Path $boostLib -Filter 'libboost_serialization-vc143-mt-*.lib' | Where-Object { $_.Name -notmatch '-gd-' } | Select-Object -First 1 }
+}
+if (-not $poLib -or -not $serLib) { throw "Could not resolve Boost component libs for $Config in $boostLib" }
 Write-Host "Using Boost PROGRAM_OPTIONS: $($poLib.Name)"
 Write-Host "Using Boost SERIALIZATION:  $($serLib.Name)"
 
@@ -87,7 +103,7 @@ Push-Location $omplBuild
 
 cmake ../.. `
   -G "$vsGen" -T $toolset `
-  -DCMAKE_BUILD_TYPE=Release `
+  -DCMAKE_BUILD_TYPE=$Config `
   -DCMAKE_INSTALL_PREFIX="$omplPrefix" `
   -DBoost_NO_BOOST_CMAKE=ON `
   -DBoost_NO_SYSTEM_PATHS=ON `
@@ -100,12 +116,12 @@ cmake ../.. `
   -DBoost_INCLUDE_DIR="$boostInc" -DBoost_INCLUDE_DIRS="$boostInc" -DBOOST_INCLUDEDIR="$boostInc" `
   -DBoost_LIBRARY_DIRS="$boostLib" -DBOOST_LIBRARYDIR="$boostLib" `
   -DBoost_ADDITIONAL_VERSIONS="1.84;1.84.0" `
-  -DBoost_USE_DEBUG_RUNTIME=OFF `
+  -DBoost_USE_DEBUG_RUNTIME=$isDebug `
   -DBoost_PROGRAM_OPTIONS_LIBRARY="$($poLib.FullName)" `
   -DBoost_SERIALIZATION_LIBRARY="$($serLib.FullName)" `
   -DEigen3_DIR="$eigenCfg"
 
-cmake --build . --config Release --target install
+cmake --build . --config $Config --target install
 Pop-Location
 
 if (Test-Path (Join-Path $omplPrefix 'share\ompl\cmake\omplConfig.cmake')) {

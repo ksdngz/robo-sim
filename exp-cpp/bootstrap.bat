@@ -44,14 +44,14 @@ if exist %EIGEN_DIR%\Eigen\Dense (
     echo Eigen installed in %EIGEN_DIR%
 )
 
-REM === Boost (minimal libs needed by OMPL) ===
+REM === Boost (build Release & Debug, shared runtime) ===
 set BOOST_VER=1_84_0
 set BOOST_DIR=third_party\boost_%BOOST_VER%
 set BOOST_ZIP=boost_%BOOST_VER%.zip
 set BOOST_URL=https://archives.boost.io/release/1.84.0/source/boost_%BOOST_VER%.zip
 
-if exist %BOOST_DIR%\stage\lib\boost_system.lib (
-	echo Boost already built in %BOOST_DIR%
+if exist %BOOST_DIR%\build\lib (
+	echo Boost already built in %BOOST_DIR%\build\lib
 ) else (
 	if not exist %BOOST_DIR% (
 		echo Downloading Boost %BOOST_VER%
@@ -63,51 +63,37 @@ if exist %BOOST_DIR%\stage\lib\boost_system.lib (
 	pushd %BOOST_DIR%
 	echo Bootstrapping Boost ...
 	call bootstrap.bat >NUL
-	echo Building Boost ^(system filesystem program_options serialization^)...
-	REM 以下をリンクを参考に使用
-	REM https://www.kkaneko.jp/tools/win/boost.html
-	REM https://qiita.com/aloac/items/73aa086924f121603839
-	REM .\b2.exe --prefix=build --build-type=complete toolset=msvc link=static,shared address-model=64 install
-	REM .\b2.exe --with-system --with-filesystem --with-program_options --with-serialization--prefix=build --build-type=complete toolset=msvc link=static,shared address-model=64 install
-	REM 以下は自動生成されたが使用してない
-
-	REM	b2 --with-system --with-filesystem --with-program_options --with-serialization -j %NUMBER_OF_PROCESSORS% variant=release link=static runtime-link=shared address-model=64 stage >NUL
+	echo Building Boost ^(system filesystem program_options serialization^) for Release and Debug...
+	.\b2.exe -j %NUMBER_OF_PROCESSORS% ^
+		--with-system --with-filesystem --with-program_options --with-serialization ^
+		toolset=msvc address-model=64 ^
+		link=shared runtime-link=shared ^
+		variant=release,debug ^
+		--build-type=complete ^
+		--prefix=build install
 	popd
 )
 
-REM === OMPL (download, build, install) ===
+REM === OMPL (download, build, install: Release & Debug to separate prefixes) ===
 set OMPL_VER=1.6.0
 set OMPL_ZIP=ompl-%OMPL_VER%.zip
 set OMPL_URL=https://github.com/ompl/ompl/archive/refs/tags/%OMPL_VER%.zip
 set OMPL_SRC=third_party\ompl
-set OMPL_INSTALL=%OMPL_SRC%\install
-if exist %OMPL_INSTALL%\share\ompl\cmake\omplConfig.cmake (
-	echo OMPL already installed in %OMPL_INSTALL%
-) else (
-	if exist %OMPL_SRC% rmdir /s /q %OMPL_SRC%
+set OMPL_INSTALL_REL=%OMPL_SRC%\install-rel
+set OMPL_INSTALL_DBG=%OMPL_SRC%\install-dbg
+
+if not exist %OMPL_SRC% (
 	echo Downloading OMPL %OMPL_VER%
 	powershell -Command "Invoke-WebRequest -Uri %OMPL_URL% -OutFile %OMPL_ZIP%"
 	echo Extracting OMPL ...
 	powershell -Command "Expand-Archive -Path %OMPL_ZIP% -DestinationPath third_party"
 	rename third_party\ompl-%OMPL_VER% ompl
 	del %OMPL_ZIP%
-	mkdir %OMPL_SRC%\build 2>NUL
-	pushd %OMPL_SRC%\build
-	echo Configuring OMPL ...
-	cmake -G "Visual Studio 17 2022" -T ClangCL ^
-		-DOMPL_BUILD_DEMOS=OFF -DOMPL_BUILD_TESTS=OFF -DOMPL_BUILD_PYBINDINGS=OFF -DOMPL_BUILD_APPS=OFF ^
-		-DBOOST_ROOT="%CD%\..\..\boost_%BOOST_VER%" ^
-		-DBOOST_LIBRARYDIR="%CD%\..\..\boost_%BOOST_VER%\stage\lib" ^
-		-DCMAKE_INSTALL_PREFIX="%CD%\..\install" ..
-	echo Building & installing OMPL ...
-	cmake --build . --config Release --target install
-	popd
-	if exist %OMPL_INSTALL%\share\ompl\cmake\omplConfig.cmake (
-		echo OMPL installed in %OMPL_INSTALL%
-	) else (
-		echo OMPL install appears to have failed.
-	)
 )
+
+REM Install OMPL using PowerShell helper script
+echo Installing OMPL via PowerShell helper script: scripts\install_ompl.ps1
+powershell -ExecutionPolicy Bypass -File scripts\install_ompl.ps1
 
 REM === Install Embedded Python (minimal, embeddable distribution) and required pip packages ===
 set PYTHON_VER=3.10.9
@@ -230,17 +216,3 @@ if not exist "%PY_INCLUDE_DIR%\pyconfig.h" (
 ) else (
 	echo pyconfig.h already present.
 )
-
-REM === Settings: Visual Studio Generator with ClangCL ===
-set GENERATOR=Visual Studio 17 2022
-set TOOLSET=ClangCL
-
-REM === Create build directory ===
-if not exist build mkdir build
-cd build
-
-REM === Run CMake ===
-cmake -G "%GENERATOR%" -T %TOOLSET% ..
-
-REM === Build ===
-cmake --build .
