@@ -7,13 +7,13 @@
 #include <initializer_list>
 #include <vector>
 #include <GLFW/glfw3.h>
-#include <mujoco/mujoco.h>
 #include <mujoco/mjui.h>
 #include <Eigen/Dense>
 #include <unsupported/Eigen/Splines>
 // Embedding Python
 #include <Python.h>
 
+#include "./mj_sim.hpp"
 #include "./constraint_path_planner.hpp"
 
 // Spline alias (3D)
@@ -22,9 +22,12 @@ using Spline3d = Eigen::Spline<double, 3>;
 const float CLR_RED[4] = {1.f, 0.f, 0.f, 1.f};
 const float CLR_GREEN[4] = {0.f, 1.f, 0.f, 1.f};
 const float CLR_BLUE[4] = {0.f, 0.f, 1.f, 1.f};
-//const float CLR_PURPLE[4] = {1.f, 0.f, 1.f, 1.f};
+const float CLR_PURPLE[4] = {1.f, 0.f, 1.f, 1.f};
 const float CLR_YELLOW[4] = {1.f, 1.f, 0.f, 1.f};
 const double RADIUS_SPH = 0.03;
+
+// global instance
+MjSim mj;
 
 
 class Position
@@ -75,26 +78,9 @@ public:
 
 using WayPoints = std::vector<Position>;
 
-class MjSim
-{
-public:
-	MjSim(){}
-	mjModel* m = NULL;
-	mjData* d = NULL;
-	mjvCamera cam;
-	mjvOption opt;
-	mjvScene scn;
-	mjrContext con;
-	bool button_left = false;
-	bool button_middle = false;
-	bool button_right = false;
-	double lastx = 0;
-	double lasty = 0;
-};
-MjSim mj;
 
 // UI state for spline toggle
-static int show_spline = 1; // 1=ON, 0=OFF
+static int show_refPath = 1; // 1=ON, 0=OFF
 static mjUI ui0;            // single UI panel
 static mjuiState uistate;   // state
 
@@ -102,7 +88,7 @@ static mjuiState uistate;   // state
 static void build_ui(const mjrContext* con) {
 	mjuiDef def[] = {
 		{ mjITEM_SECTION, "Display", 0, nullptr, "" },
-		{ mjITEM_RADIO,   "Spline", 1, &show_spline, "Off\nOn" },
+		{ mjITEM_RADIO,   "Reference Path", 1, &show_refPath, "Off\nOn" },
 		{ mjITEM_END,     "", 0, nullptr, "" }
 	};
 	mjui_add(&ui0, def);
@@ -200,13 +186,16 @@ void catmullRomSplinePoints(const WayPoints& wp, std::vector<Position>& out_poin
 	}
 }
 
-int drawSph(
+int drawGeom(
+	enum mjtGeom_ geom, 
 	MjSim& mj,
 	const Position& pt,
-	double radius,
+	const mjtNum size[3],
+	const mjtNum pos[3], 
+	const mjtNum mat[9], 
 	const float rgba[4],
 	std::string name)
-{ 
+{
 	if ( mj.scn.ngeom>=mj.scn.maxgeom ) {
 		mj_warning(mj.d, mjWARN_VGEOMFULL, mj.scn.maxgeom);
 		return EXIT_FAILURE;
@@ -216,9 +205,7 @@ int drawSph(
 	memset(g, 0, sizeof(mjvGeom));
 
     // Add it to the scene
-	mjtNum sphsize[3] = {radius, 0, 0};
-    mjtNum myrot3x3[9] = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
-	mjv_initGeom(g, mjGEOM_SPHERE, sphsize, &pt.x, myrot3x3, rgba);
+	mjv_initGeom(g, geom, size, pos, mat, rgba);
     g->objtype = mjOBJ_UNKNOWN;
     g->objid = -1;
     g->category = mjCAT_DECOR;
@@ -226,7 +213,31 @@ int drawSph(
 	strncpy_s(g->label, sizeof(g->label), name.c_str(), _TRUNCATE);
 
 	scn.ngeom++;
-	return EXIT_SUCCESS;
+	return EXIT_SUCCESS;	
+}
+
+int drawSph(
+	MjSim& mj,
+	const Position& pt,
+	double radius,
+	const float rgba[4],
+	std::string name)
+{ 
+	mjtNum sphsize[3] = {radius, 0, 0};
+    mjtNum myrot3x3[9] = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
+	return drawGeom(mjGEOM_SPHERE, mj, pt, sphsize, &pt.x, myrot3x3, rgba, name);
+}
+
+int drawBox(
+	MjSim& mj,
+	const Position& pt,
+	double radius,
+	const float rgba[4],
+	std::string name)
+{ 
+	mjtNum boxsize[3] = {radius, radius, radius};
+    mjtNum myrot3x3[9] = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
+	return drawGeom(mjGEOM_BOX, mj, pt, boxsize, &pt.x, myrot3x3, rgba, name);
 }
 
 int drawLine(
@@ -251,23 +262,41 @@ int drawLine(
 	return EXIT_SUCCESS;
 }
 
-int drawSpline(
+int drawReferencePath(
 	MjSim& mj,
-	const WayPoints& wp,
-	const float rgba[4]
-) {
+	const WayPoints& wp)
+{
 	if (wp.size() < 2) return EXIT_SUCCESS;
 
+	// Draw waypoints
+	double boxSize = 0.01;
+	for (const auto& pt : wp) {
+		if (drawBox(mj, pt, boxSize, CLR_PURPLE, "") != EXIT_SUCCESS)
+			return EXIT_FAILURE;
+	}
+
+	// Draw Catmull-Rom spline
 	std::vector<Position> points;
 	catmullRomSplinePoints(wp, points);
-
 	if (points.empty()) return EXIT_SUCCESS;
 	Position prev = points[0];
 
 	for (const auto& pt : points) {
-		if (drawLine(mj, prev, pt, rgba) != EXIT_SUCCESS) 
+		if (drawLine(mj, prev, pt, CLR_YELLOW) != EXIT_SUCCESS) 
 			return EXIT_FAILURE;
 		prev = pt;
+	}
+	return EXIT_SUCCESS;
+}
+
+int drawWayPoint(
+	MjSim& mj,
+	const WayPoints& points)
+{
+	double radius = 0.02;
+	for (const auto& pt : points) {
+		if (drawBox(mj, pt, radius, CLR_PURPLE, "") != EXIT_SUCCESS)
+			return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
 }
@@ -509,61 +538,18 @@ int main(int argc, const char** argv) {
 
 	printf("Timestep: %f seconds\n", mj.m->opt.timestep);
 
-/*
-	// --- Embedded Python: create a quick plot via matplotlib to verify embedding ---
-	// This will produce 'cpp_plot.png' in the current working directory.
-	auto runPythonMatplotlibSample = []() -> bool {
-		// Initialize Python interpreter if not already
-		if (!Py_IsInitialized()) {
-			Py_Initialize();
-		}
-		const char* script = R"PY(
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import numpy as np
-x = np.linspace(0, 10, 200)
-y = np.sin(x)
-plt.figure()
-plt.plot(x, y)
-plt.title('Embedded Python plot from C++')
-plt.xlabel('x')
-plt.ylabel('sin(x)')
-plt.savefig('cpp_plot.png')
-print('cpp_plot.png saved')
-)PY";
-		int rc = PyRun_SimpleString(script);
-		if (rc != 0) {
-			fprintf(stderr, "Embedded python script failed with code %d\n", rc);
-			// Attempt to finalize interpreter anyway
-			if (Py_IsInitialized()) Py_FinalizeEx();
-			return false;
-		}
-		// Finalize python interpreter
-		if (Py_IsInitialized()) Py_FinalizeEx();
-		return true;
-	};
-
-	if (!runPythonMatplotlibSample()) {
-		fprintf(stderr, "Warning: embedded matplotlib sample failed\n");
-	} else {
-		printf("Embedded matplotlib sample written: cpp_plot.png\n");
-	}
-*/
 	// Create Path planner 
-	auto constraintPathPlanner = std::make_shared<ConstraintPathPlanner>();
+	auto constraintPathPlanner = std::make_shared<ConstraintPathPlanner>(mj);
 	int result = constraintPathPlanner->plan();
 
 	// WayPoints Definition
 	WayPoints blueSph_wp = {
 		{0.0, 0.0, 0.0},
 		{1.0, 0.0, 0.0},
-		{1.0, 0.5, 0.2}};
-	// add line2
-	WayPoints wp2 = {
-		{0.0, 0.0, 0.0},
-		{0.0, 1.1, 1.0},
-		{1.0, 0.5, 0.5}};
+		{1.0, 0.5, 0.2},
+		{1.0, 1.5, 1.2},
+		{1.0, 1.5, 2.2}
+	};
 
 	// Create a SimplePathReader instance
 	Path blueSphPath;
@@ -595,11 +581,10 @@ print('cpp_plot.png saved')
 		// Update the scene first (this resets scn.ngeom)
 		mjv_updateScene(mj.m, mj.d, &mj.opt, NULL, &mj.cam, mjCAT_ALL, &mj.scn);
 
-
 		double dt = mj.d->time - simstart;
 		int ec = EXIT_SUCCESS;
-		if (show_spline) {
-			ec = drawSpline(mj, blueSph_wp, CLR_YELLOW);
+		if (show_refPath) {
+			ec = drawReferencePath(mj, blueSph_wp);
 			if (ec != EXIT_SUCCESS) return ec;
 		}
 
@@ -624,8 +609,8 @@ print('cpp_plot.png saved')
 			}
 			return drawPath(mj, path, rgba);
 		};
-		ec = drawMovedPath(mj, blueSphMovedPath, pos_ref, CLR_BLUE);
-		if (ec != EXIT_SUCCESS) return ec;
+//		ec = drawMovedPath(mj, blueSphMovedPath, pos_ref, CLR_BLUE);
+//		if (ec != EXIT_SUCCESS) return ec;
 		ec = drawMovedPath(mj, redSphMovedPath, pos_redSph, CLR_RED);
 		if (ec != EXIT_SUCCESS) return ec;
 		ec = drawMovedPath(mj, greenSphMovedPath, pos_greenSph, CLR_GREEN);

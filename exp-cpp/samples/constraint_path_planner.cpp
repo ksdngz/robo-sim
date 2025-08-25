@@ -1,4 +1,3 @@
-#include <mujoco/mujoco.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/geometric/SimpleSetup.h>
 #include <ompl/geometric/planners/rrt/RRTConnect.h>
@@ -6,6 +5,8 @@
 #include <vector>
 #include <iostream>
 #include <cmath>
+
+#include "./mj_sim.hpp"
 #include "./constraint_path_planner.hpp"
 #include "./path_planner.hpp"
 
@@ -15,33 +16,28 @@
 
 namespace ob = ompl::base;
 namespace og = ompl::geometric;
-
 constexpr int EE_BODY_ID = 10;       // MuJoCoモデル内のEEリンクIDに変更
-mjModel* m = nullptr;
-mjData*  d = nullptr;
 
-
-ConstraintPathPlanner::ConstraintPathPlanner() {
-    // コンストラクタの実装
-}
+ConstraintPathPlanner::ConstraintPathPlanner(MjSim& mj)
+ : mj_(mj){}
 
 // ---- FK: q -> EE位置 ----
 Eigen::Vector3d ConstraintPathPlanner::fkEE(const Eigen::VectorXd& q) {
-    for(int i=0;i<DOF && i<q.size();++i) d->qpos[i] = q[i];
-    mj_forward(m, d);
-    return Eigen::Map<Eigen::Vector3d>(d->xpos + 3*EE_BODY_ID);
+    for(int i=0;i<DOF && i<q.size();++i) mj_.d->qpos[i] = q[i];
+    mj_forward(mj_.m, mj_.d);
+    return Eigen::Map<Eigen::Vector3d>(mj_.d->xpos + 3*EE_BODY_ID);
 }
 
 // ---- 数値IK（EE位置一致のみ、ヤコビ行列逆を利用）----
 bool ConstraintPathPlanner::ikSolve(const Eigen::Vector3d& target, Eigen::VectorXd& q_out, int maxIter, double tol) {
-    q_out = Eigen::Map<Eigen::VectorXd>(d->qpos, DOF); // 現在値から開始
+    q_out = Eigen::Map<Eigen::VectorXd>(mj_.d->qpos, DOF); // 現在値から開始
     for(int iter=0; iter<maxIter; ++iter) {
         Eigen::Vector3d p = fkEE(q_out);
         Eigen::Vector3d err = target - p;
         if(err.norm() < tol) return true;
         // 位置ヤコビ取得
         Eigen::Matrix<double,3,DOF> Jpos;
-        mj_jacBodyCom(m, d, Jpos.data(), nullptr, EE_BODY_ID);
+        mj_jacBodyCom(mj_.m, mj_.d, Jpos.data(), nullptr, EE_BODY_ID);
         // 疑似逆行列で更新
         Eigen::MatrixXd Jpinv = Jpos.transpose() * ( (Jpos * Jpos.transpose()).inverse() );
         q_out += Jpinv * err;
@@ -88,14 +84,8 @@ std::vector<Eigen::Vector3d> ConstraintPathPlanner::fitArc(const std::vector<Eig
     return out;
 }
 
-int ConstraintPathPlanner::plan(){
-	/*
-    if(argc<2){ std::cerr<<"Usage: "<<argv[0]<<" model.xml\n"; return 1;}
-//    mj_activate("mjkey.txt");
-    m = mj_loadXML(argv[1], nullptr, nullptr, 0);
-    if(!m){ std::cerr<<"Model load failed\n"; return 1;}
-    d = mj_makeData(m);
-*/
+int ConstraintPathPlanner::plan()
+{
 	auto pathPlanner = std::make_shared<PathPlanner>();
 	PathPoints joint_path;
 	int ret = pathPlanner->plan(joint_path);
@@ -121,8 +111,5 @@ int ConstraintPathPlanner::plan(){
 		if(ikSolve(p,qsol)) joint_traj.push_back(qsol);
 	}
 	std::cout<<"Original: "<<ee_pts.size()<<"  Arc fitted: "<<joint_traj.size()<<"\n";
-//    mj_deleteData(d);
-//    mj_deleteModel(m);
-//    mj_deactivate();
     return 0;
 }

@@ -18,6 +18,7 @@ set(SOURCES
     samples/constraint_path_planner.hpp
     samples/path_planner.cpp
     samples/path_planner.hpp
+    samples/mj_sim.hpp
 )
 add_executable(simple_sim ${SOURCES})
 
