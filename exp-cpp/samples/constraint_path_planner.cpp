@@ -22,9 +22,11 @@ ConstraintPathPlanner::ConstraintPathPlanner(MjSim& mj)
  : mj_(mj){}
 
 // ---- FK: q -> EE位置 ----
-Eigen::Vector3d ConstraintPathPlanner::fkEE(const Eigen::VectorXd& q) {
-    for(int i=0;i<DOF && i<q.size();++i) mj_.d->qpos[i] = q[i];
-    mj_forward(mj_.m, mj_.d);
+Eigen::Vector3d ConstraintPathPlanner::fkEE(const Eigen::VectorXd& q) 
+{
+	for(int i=0;i<DOF && i<q.size();++i) 
+		mj_.d->qpos[i] = q[i];
+	mj_forward(mj_.m, mj_.d);
     return Eigen::Map<Eigen::Vector3d>(mj_.d->xpos + 3*EE_BODY_ID);
 }
 

@@ -24,7 +24,7 @@ const float CLR_GREEN[4] = {0.f, 1.f, 0.f, 1.f};
 const float CLR_BLUE[4] = {0.f, 0.f, 1.f, 1.f};
 const float CLR_PURPLE[4] = {1.f, 0.f, 1.f, 1.f};
 const float CLR_YELLOW[4] = {1.f, 1.f, 0.f, 1.f};
-const double RADIUS_SPH = 0.03;
+const double RADIUS_SPH = 0.02;
 
 // global instance
 MjSim mj;
@@ -219,11 +219,10 @@ int drawGeom(
 int drawSph(
 	MjSim& mj,
 	const Position& pt,
-	double radius,
 	const float rgba[4],
 	std::string name)
 { 
-	mjtNum sphsize[3] = {radius, 0, 0};
+	mjtNum sphsize[3] = {RADIUS_SPH, 0, 0};
     mjtNum myrot3x3[9] = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
 	return drawGeom(mjGEOM_SPHERE, mj, pt, sphsize, &pt.x, myrot3x3, rgba, name);
 }
@@ -476,6 +475,39 @@ public:
 	}
 };
 
+#include <iostream>
+class Pose
+{
+public:
+	Pose() = default;
+	Pose(const Eigen::Vector3d& position, const Eigen::Quaterniond& orientation)
+		: pos(position), quat(orientation) {}
+	Eigen::Vector3d pos;
+	Eigen::Quaterniond quat;
+	void show(){
+		std::cout << pos << std::endl << quat << std::endl;
+	}
+};
+
+void getSitePose(const mjModel* m, mjData* d, const char* siteName, Pose& pose)
+{
+    int sid = mj_name2id(m, mjOBJ_SITE, siteName);
+    if (sid < 0) throw std::runtime_error("site not found");
+    mj_forward(m, d);
+    double* p = d->site_xpos + 3*sid;
+    double* R = d->site_xmat + 9*sid; // 3x3 行列（row-major）
+    double q[4];
+    mju_mat2Quat(q, R); // q: {w, x, y, z}
+    Eigen::Vector3d pos(p[0], p[1], p[2]);
+    Eigen::Quaterniond quat(q[0], q[1], q[2], q[3]); // Eigen( w, x, y, z )
+	pose = Pose(pos, quat);
+}
+
+void getEEPose(const MjSim& mj, Pose& pose) 
+{
+	getSitePose(mj.m, mj.d, "end_effector", pose);
+}
+
 int main(int argc, const char** argv) {
 
 	// Decide model file path
@@ -491,6 +523,11 @@ int main(int argc, const char** argv) {
 
 	// make data
 	mj.d = mj_makeData(mj.m);
+
+	//  temp
+	Pose pose;
+	getEEPose(mj, pose);
+	pose.show();
 
 	// init GLFW
 	if (!glfwInit()) {
@@ -591,15 +628,15 @@ int main(int argc, const char** argv) {
 		// draw spheres and the moved path
 		// blue sphere
 		Position pos_ref = blueSphPathReader.update();
-		ec = drawSph(mj, pos_ref, RADIUS_SPH, CLR_BLUE, "ref");
+		ec = drawSph(mj, pos_ref, CLR_BLUE, "ref");
 		if (ec != EXIT_SUCCESS) return ec;
 		// red sphere
 		Position pos_redSph = redSph.update(pos_ref, dt);
-		ec = drawSph(mj, pos_redSph, RADIUS_SPH, CLR_RED, "p1");
+		ec = drawSph(mj, pos_redSph, CLR_RED, "p1");
 		if (ec != EXIT_SUCCESS) return ec;
 		// green sphere
 		Position pos_greenSph = greenSph.update(pos_ref, dt);
-		ec = drawSph(mj, pos_greenSph, RADIUS_SPH, CLR_GREEN, "p2");
+		ec = drawSph(mj, pos_greenSph, CLR_GREEN, "p2");
 		if (ec != EXIT_SUCCESS) return ec;
 		
 
