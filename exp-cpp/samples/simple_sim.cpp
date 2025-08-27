@@ -620,7 +620,7 @@ int main(int argc, const char** argv) {
 
 	printf("Timestep: %f seconds\n", mj.m->opt.timestep);
 
-	// Positions Definition
+//	// Positions Definition
 	Positions blueSph_wp = {
 		{0.0, 0.0, 0.0},
 		{1.0, 0.0, 0.0},
@@ -628,6 +628,7 @@ int main(int argc, const char** argv) {
 		{1.0, 1.5, 1.2},
 		{1.0, 1.5, 2.2}
 	};
+	Positions refPath;
 
 	// Create a SimplePathReader instance
 	Path blueSphPath;
