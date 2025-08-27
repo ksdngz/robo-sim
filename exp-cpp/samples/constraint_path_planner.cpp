@@ -8,7 +8,6 @@
 
 #include "./mj_sim.hpp"
 #include "./constraint_path_planner.hpp"
-#include "./path_planner.hpp"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -18,8 +17,6 @@ namespace ob = ompl::base;
 namespace og = ompl::geometric;
 constexpr int EE_BODY_ID = 10;       // MuJoCoモデル内のEEリンクIDに変更
 
-ConstraintPathPlanner::ConstraintPathPlanner(MjSim& mj)
- : mj_(mj){}
 
 // ---- FK: q -> EE位置 ----
 Eigen::Vector3d ConstraintPathPlanner::fkEE(const Eigen::VectorXd& q) 
@@ -86,22 +83,24 @@ std::vector<Eigen::Vector3d> ConstraintPathPlanner::fitArc(const std::vector<Eig
     return out;
 }
 
-int ConstraintPathPlanner::plan()
+ConstraintPathPlanner::ConstraintPathPlanner(MjSim& mj)
+ : mj_(mj){}
+
+int ConstraintPathPlanner::plan(const PathPlanningInput& input, WayPoints& points)
 {
 	auto pathPlanner = std::make_shared<PathPlanner>();
-	PathPoints joint_path;
-	int ret = pathPlanner->plan(joint_path);
+	int ret = pathPlanner->plan(input, points);
 
     // FKでEE位置列に変換
 	std::vector<Eigen::Vector3d> ee_pts;
-	for(std::size_t k=0;k<joint_path.point.size();++k){
-		const auto& q = joint_path.point[k];
+	for(std::size_t k=0;k<points.size();++k){
+		const auto& q = points[k];
         // PathPoint(std::array<double,DOF>) -> Eigen::VectorXd
         Eigen::VectorXd qvec(DOF);
         for(int i=0;i<DOF;++i) qvec[i] = q[i];
         ee_pts.push_back(fkEE(qvec));
 	}	
-	std::cout<<"Original joint path: "<<joint_path.point.size()<<"  FK EE path: "<<ee_pts.size()<<"\n";
+	std::cout<<"Original joint path: "<<points.size()<<"  FK EE path: "<<ee_pts.size()<<"\n";
 
 	// 円弧フィット（直線は fitLine に差し替え）
 	auto fitted = fitArc(ee_pts);
@@ -113,5 +112,5 @@ int ConstraintPathPlanner::plan()
 		if(ikSolve(p,qsol)) joint_traj.push_back(qsol);
 	}
 	std::cout<<"Original: "<<ee_pts.size()<<"  Arc fitted: "<<joint_traj.size()<<"\n";
-    return 0;
+    return ret;
 }

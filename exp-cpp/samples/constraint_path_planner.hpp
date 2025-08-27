@@ -1,6 +1,7 @@
 #pragma once
 #include <Eigen/Dense>
 #include <vector>
+#include "./path_planner.hpp"
 
 class MjSim;
 
@@ -8,7 +9,7 @@ class ConstraintPathPlanner
 {
 public:
 	ConstraintPathPlanner(MjSim& mj);
-	int plan();
+	int plan(const PathPlanningInput& input, WayPoints& points);
 
 private:
 	Eigen::Vector3d fkEE(const Eigen::VectorXd& q);

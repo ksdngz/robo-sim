@@ -18,7 +18,7 @@ PathPlanner::PathPlanner()
     // コンストラクタの実装
 }
 
-int PathPlanner::plan(PathPoints& points)
+int PathPlanner::plan(const PathPlanningInput& input, WayPoints& points)
 {
     auto space = std::make_shared<ob::RealVectorStateSpace>(DOF);
     ob::RealVectorBounds bounds(DOF);
@@ -30,16 +30,19 @@ int PathPlanner::plan(PathPoints& points)
     ss.setPlanner(std::make_shared<og::RRTConnect>(ss.getSpaceInformation()));
 
     ob::ScopedState<> start(space), goal(space);
-    for(int i=0;i<DOF;++i){ start[i]=0.0; goal[i]=0.5; }
+	for(unsigned i =0; i< DOF; ++i){
+		start[i] = input.start[i];
+		goal[i] = input.goal[i];
+	}
     ss.setStartAndGoalStates(start, goal);
 
     if(ss.solve(1.0)) {
         const auto& path = ss.getSolutionPath();
 		for(std::size_t k=0;k<path.getStateCount();++k){
 			const auto* st = path.getState(k)->as<ob::RealVectorStateSpace::StateType>();
-			PathPoint q;
+			WayPoint q;
 			for(int i=0;i<DOF;++i) q[i]=st->values[i];
-			points.point.push_back(q);
+			points.push_back(q);
 		}
 		return 0;
     }

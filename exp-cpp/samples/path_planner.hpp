@@ -13,14 +13,18 @@
 //#endif
 
 constexpr int DOF = 7;               // ロボットの関節自由度
-using PathPoint = std::array<double, DOF>;
-struct PathPoints{
-	std::vector<PathPoint> point;
+using WayPoint = std::array<double, DOF>;
+using WayPoints = std::vector<WayPoint>;
+
+struct PathPlanningInput
+{
+	WayPoint start;
+	WayPoint goal;
 };
 
 class PathPlanner{
 public:
 	PathPlanner();
-	int plan(PathPoints& points);
+	int plan(const PathPlanningInput& input, WayPoints& points);
 
 };

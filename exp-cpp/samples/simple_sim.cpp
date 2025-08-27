@@ -1,4 +1,5 @@
 // Simple MuJoCo simulation sample: visualize panda_arm_mjcf.xml
+#include <iostream>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -17,6 +18,7 @@
 #include "./constraint_path_planner.hpp"
 
 // Spline alias (3D)
+using namespace Eigen;
 using Spline3d = Eigen::Spline<double, 3>;
 
 const float CLR_RED[4] = {1.f, 0.f, 0.f, 1.f};
@@ -29,6 +31,28 @@ const double RADIUS_SPH = 0.02;
 // global instance
 MjSim mj;
 
+// Utility methods
+Eigen::VectorXd arrayToVector(const std::array<double, DOF> &a)
+{
+    Eigen::VectorXd v(static_cast<int>(DOF));
+    for (std::size_t i = 0; i < DOF; ++i) v[static_cast<int>(i)] = a[i];
+    return v;
+}
+
+std::array<double, DOF> vectorToArray(const Eigen::VectorXd &v, bool throwOnSizeMismatch = true)
+{
+    if (v.size() != static_cast<int>(DOF)) {
+        if (throwOnSizeMismatch) throw std::runtime_error("vectorToArray: size mismatch");
+        // 部分コピーで埋める場合: 残りはゼロで埋める
+        std::array<double, DOF> out{};
+        int copyN = std::min<int>(v.size(), static_cast<int>(DOF));
+        for (int i = 0; i < copyN; ++i) out[i] = v[i];
+        return out;
+    }
+    std::array<double, DOF> out;
+    for (std::size_t i = 0; i < DOF; ++i) out[i] = v[static_cast<int>(i)];
+    return out;
+}
 
 class Position
 {
@@ -76,7 +100,7 @@ public:
 	friend Position operator/(Position lhs, double s){ lhs/=s; return lhs; }
 };
 
-using WayPoints = std::vector<Position>;
+using Positions = std::vector<Position>;
 
 
 // UI state for spline toggle
@@ -159,7 +183,7 @@ public:
 	std::vector<PathPoint> points;
 };
 
-void catmullRomSplinePoints(const WayPoints& wp, std::vector<Position>& out_points, int num_steps = 20) {
+void catmullRomSplinePoints(const Positions& wp, std::vector<Position>& out_points, int num_steps = 20) {
 	if (wp.size() < 2) return;
 	for (size_t i = 0; i + 1 < wp.size(); ++i) {
 		const Position& p0 = (i == 0) ? wp[0] : wp[i-1];
@@ -263,11 +287,11 @@ int drawLine(
 
 int drawReferencePath(
 	MjSim& mj,
-	const WayPoints& wp)
+	const Positions& wp)
 {
 	if (wp.size() < 2) return EXIT_SUCCESS;
 
-	// Draw waypoints
+	// Draw Positions
 	double boxSize = 0.01;
 	for (const auto& pt : wp) {
 		if (drawBox(mj, pt, boxSize, CLR_PURPLE, "") != EXIT_SUCCESS)
@@ -290,7 +314,7 @@ int drawReferencePath(
 
 int drawWayPoint(
 	MjSim& mj,
-	const WayPoints& points)
+	const Positions& points)
 {
 	double radius = 0.02;
 	for (const auto& pt : points) {
@@ -316,7 +340,7 @@ int drawPath(
 }
 
 void create3rdSpline(
-	const WayPoints& wp,
+	const Positions& wp,
 	std::vector<Position>& points)
 {
 	catmullRomSplinePoints(wp, points);
@@ -362,7 +386,7 @@ inline Position sampleSpline(const Spline3d& spline, double t) {
     return Position{v(0), v(1), v(2)};
 }
 
-void generatePath(const WayPoints& wp, Path& path)
+void generatePath(const Positions& wp, Path& path)
 {
 	if(path.points.size() > 0) 
 		path.points.clear();
@@ -475,7 +499,6 @@ public:
 	}
 };
 
-#include <iostream>
 class Pose
 {
 public:
@@ -503,9 +526,31 @@ void getSitePose(const mjModel* m, mjData* d, const char* siteName, Pose& pose)
 	pose = Pose(pos, quat);
 }
 
+VectorXd qpos(const MjSim& mj)
+{
+    VectorXd q(mj.m->nq);
+    for (int i = 0; i < mj.m->nq; ++i) 
+		q[i] = mj.d->qpos[i];
+    return q;
+}
+
 void getEEPose(const MjSim& mj, Pose& pose) 
 {
 	getSitePose(mj.m, mj.d, "end_effector", pose);
+}
+
+int createPath(MjSim& mj, WayPoints& points)
+{
+	auto constraintPathPlanner = std::make_shared<ConstraintPathPlanner>(mj);
+	PathPlanningInput input;
+	input.start = vectorToArray(qpos(mj));
+	input.goal = vectorToArray(qpos(mj));
+	input.goal[0] += 0.5; // j1:+0.5[rad]
+	int result = constraintPathPlanner->plan(input, points);
+	if (result != EXIT_SUCCESS) {
+		mju_error("Path planning failed.");
+	}
+	return result;
 }
 
 int main(int argc, const char** argv) {
@@ -575,12 +620,8 @@ int main(int argc, const char** argv) {
 
 	printf("Timestep: %f seconds\n", mj.m->opt.timestep);
 
-	// Create Path planner 
-	auto constraintPathPlanner = std::make_shared<ConstraintPathPlanner>(mj);
-	int result = constraintPathPlanner->plan();
-
-	// WayPoints Definition
-	WayPoints blueSph_wp = {
+	// Positions Definition
+	Positions blueSph_wp = {
 		{0.0, 0.0, 0.0},
 		{1.0, 0.0, 0.0},
 		{1.0, 0.5, 0.2},
@@ -604,12 +645,24 @@ int main(int argc, const char** argv) {
 	SecondOrderDynamics greenSph(0.1, 0.25, 2.0, {0.0, 0.0, 0.0});
 
 
+	static int count = 0;
 	// run main loop, target real-time simulation and 60 fps rendering
 	while (!glfwWindowShouldClose(window)) {
 		double simstart = mj.d->time;
 		while (mj.d->time - simstart < 1.0/60.0) {
 			mj_step(mj.m, mj.d);
+
+			// createPath
+			if(2 == count){
+				WayPoints points;
+				int ret = createPath(mj, points);
+				if (ret != EXIT_SUCCESS) {
+					mju_error("Path planning failed.");
+				}
+			} 
+			count++;
 		}
+
 	mjrRect viewport_full = {0, 0, 0, 0};
 	glfwGetFramebufferSize(window, &viewport_full.width, &viewport_full.height);
 	process_ui_events(window, &mj.con, viewport_full.width, viewport_full.height);
