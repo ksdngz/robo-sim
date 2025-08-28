@@ -672,7 +672,7 @@ int main(int argc, const char** argv) {
 		// Update the scene first (this resets scn.ngeom)
 		mjv_updateScene(mj.m, mj.d, &mj.opt, NULL, &mj.cam, mjCAT_ALL, &mj.scn);
 
-		double dt = mj.d->time - simstart;
+		// double dt = mj.d->time - simstart;
 		int ec = EXIT_SUCCESS;
 		if (show_refPath) {
 			ec = drawReferencePath(mj, blueSph_wp);
@@ -680,18 +680,18 @@ int main(int argc, const char** argv) {
 		}
 
 		// draw spheres and the moved path
-		// blue sphere
-		Position pos_ref = blueSphPathReader.update();
-		ec = drawSph(mj, pos_ref, CLR_BLUE, "ref");
-		if (ec != EXIT_SUCCESS) return ec;
-		// red sphere
-		Position pos_redSph = redSph.update(pos_ref, dt);
-		ec = drawSph(mj, pos_redSph, CLR_RED, "p1");
-		if (ec != EXIT_SUCCESS) return ec;
-		// green sphere
-		Position pos_greenSph = greenSph.update(pos_ref, dt);
-		ec = drawSph(mj, pos_greenSph, CLR_GREEN, "p2");
-		if (ec != EXIT_SUCCESS) return ec;
+//		// blue sphere
+//		Position pos_ref = blueSphPathReader.update();
+//		ec = drawSph(mj, pos_ref, CLR_BLUE, "ref");
+//		if (ec != EXIT_SUCCESS) return ec;
+//		// red sphere
+//		Position pos_redSph = redSph.update(pos_ref, dt);
+//		ec = drawSph(mj, pos_redSph, CLR_RED, "p1");
+//		if (ec != EXIT_SUCCESS) return ec;
+//		// green sphere
+//		Position pos_greenSph = greenSph.update(pos_ref, dt);
+//		ec = drawSph(mj, pos_greenSph, CLR_GREEN, "p2");
+//		if (ec != EXIT_SUCCESS) return ec;
 		
 
 		auto drawMovedPath = [](MjSim& mj, Path& path, const Position& pos, const float rgba[4]) -> int {
@@ -702,10 +702,10 @@ int main(int argc, const char** argv) {
 		};
 //		ec = drawMovedPath(mj, blueSphMovedPath, pos_ref, CLR_BLUE);
 //		if (ec != EXIT_SUCCESS) return ec;
-		ec = drawMovedPath(mj, redSphMovedPath, pos_redSph, CLR_RED);
-		if (ec != EXIT_SUCCESS) return ec;
-		ec = drawMovedPath(mj, greenSphMovedPath, pos_greenSph, CLR_GREEN);
-		if (ec != EXIT_SUCCESS) return ec;
+//		ec = drawMovedPath(mj, redSphMovedPath, pos_redSph, CLR_RED);
+//		if (ec != EXIT_SUCCESS) return ec;
+//		ec = drawMovedPath(mj, greenSphMovedPath, pos_greenSph, CLR_GREEN);
+//		if (ec != EXIT_SUCCESS) return ec;
 
 //		printf("dt: %f, ngeom: %d\n", dt, mj.scn.ngeom);
 
