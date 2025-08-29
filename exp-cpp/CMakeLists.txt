@@ -19,6 +19,7 @@ set(SOURCES
     samples/path_planner.cpp
     samples/path_planner.hpp
     samples/mj_sim.hpp
+    samples/robot_def.hpp
 )
 add_executable(simple_sim ${SOURCES})
 

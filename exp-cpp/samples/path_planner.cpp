@@ -1,6 +1,7 @@
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/geometric/SimpleSetup.h>
-#include <ompl/geometric/planners/rrt/RRTConnect.h>
+#include <ompl/geometric/planners/fmt/FMT.h>
+//#include <ompl/geometric/planners/rrt/RRTConnect.h>
 #include <Eigen/Dense>
 #include <vector>
 #include <iostream>
@@ -27,8 +28,10 @@ int PathPlanner::plan(const PathPlanningInput& input, WayPoints& points)
 
     og::SimpleSetup ss(space);
     ss.setStateValidityChecker([](const ob::State*){ return true; });
-    ss.setPlanner(std::make_shared<og::RRTConnect>(ss.getSpaceInformation()));
-
+    ss.setPlanner(std::make_shared<og::FMT>(ss.getSpaceInformation()));
+//    ss.setPlanner(std::make_shared<og::RRTConnect>(ss.getSpaceInformation()));
+	ss.getPlanner()->as<og::FMT>()->setNumSamples(20);
+	ss.getPlanner()->as<og::FMT>()->setRadiusMultiplier(0.8);
     ob::ScopedState<> start(space), goal(space);
 	for(unsigned i =0; i< DOF; ++i){
 		start[i] = input.start[i];

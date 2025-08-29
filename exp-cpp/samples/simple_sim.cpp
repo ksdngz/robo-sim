@@ -13,7 +13,7 @@
 #include <unsupported/Eigen/Splines>
 // Embedding Python
 #include <Python.h>
-
+#include "robot_def.hpp"
 #include "./mj_sim.hpp"
 #include "./constraint_path_planner.hpp"
 
@@ -21,11 +21,6 @@
 using namespace Eigen;
 using Spline3d = Eigen::Spline<double, 3>;
 
-const float CLR_RED[4] = {1.f, 0.f, 0.f, 1.f};
-const float CLR_GREEN[4] = {0.f, 1.f, 0.f, 1.f};
-const float CLR_BLUE[4] = {0.f, 0.f, 1.f, 1.f};
-const float CLR_PURPLE[4] = {1.f, 0.f, 1.f, 1.f};
-const float CLR_YELLOW[4] = {1.f, 1.f, 0.f, 1.f};
 const double RADIUS_SPH = 0.02;
 
 // global instance
@@ -536,7 +531,7 @@ VectorXd qpos(const MjSim& mj)
 
 void getEEPose(const MjSim& mj, Pose& pose) 
 {
-	getSitePose(mj.m, mj.d, "end_effector", pose);
+	getSitePose(mj.m, mj.d, "site_gripper", pose);
 }
 
 int createPath(MjSim& mj, WayPoints& points)
@@ -545,7 +540,8 @@ int createPath(MjSim& mj, WayPoints& points)
 	PathPlanningInput input;
 	input.start = vectorToArray(qpos(mj));
 	input.goal = vectorToArray(qpos(mj));
-	input.goal[0] += 0.5; // j1:+0.5[rad]
+	input.start[0] = -3; // j1:+0.5[rad]
+	input.goal[0] = 3; // j1:+0.5[rad]
 	int result = constraintPathPlanner->plan(input, points);
 	if (result != EXIT_SUCCESS) {
 		mju_error("Path planning failed.");
@@ -556,7 +552,6 @@ int createPath(MjSim& mj, WayPoints& points)
 int main(int argc, const char** argv) {
 
 	// Decide model file path
-	const char* model_path = "../models/urdf/robot/panda_arm_mjcf.xml";
 	if (argc == 2) model_path = argv[1];
 
 	// load and compile model

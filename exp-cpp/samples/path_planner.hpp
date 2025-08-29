@@ -11,8 +11,8 @@
 //#ifndef M_PI
 //#define M_PI 3.14159265358979323846
 //#endif
+#include "robot_def.hpp"
 
-constexpr int DOF = 7;               // ロボットの関節自由度
 using WayPoint = std::array<double, DOF>;
 using WayPoints = std::vector<WayPoint>;
 
