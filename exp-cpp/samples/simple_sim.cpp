@@ -661,8 +661,14 @@ int main(int argc, const char** argv) {
 
 			// update Joint pos for test
 			if(2 < count){
-				double pos = qpos(mj)[0] + 0.1;
-				updateJointPosition(mj, "joint_torso", pos);
+				//std::string jname = "joint_torso";
+				std::string jname = "joint_base_x";
+				int jointId = mj_name2id(mj.m, mjOBJ_JOINT, jname.c_str());
+				if (jointId < 0) {
+					mju_error("Joint not found: %s", jname.c_str());
+				}
+				double pos = qpos(mj)[jointId] + 0.1;
+				updateJointPosition(mj, jname, pos);
 			}
 
 			// createPath
