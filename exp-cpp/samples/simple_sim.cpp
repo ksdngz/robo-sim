@@ -549,6 +549,17 @@ int createPath(MjSim& mj, WayPoints& points)
 	return result;
 }
 
+void updateJointPosition(MjSim& mj, const std::string& actName, double pos)
+{
+	int jointId = mj_name2id(mj.m, mjOBJ_JOINT, actName.c_str());
+	if (jointId < 0) {
+		mju_error("Joint not found: %s", actName.c_str());
+		return;
+	}
+	mj.d->ctrl[jointId] = pos;
+}
+
+
 int main(int argc, const char** argv) {
 
 	// Decide model file path
@@ -648,14 +659,20 @@ int main(int argc, const char** argv) {
 		while (mj.d->time - simstart < 1.0/60.0) {
 			mj_step(mj.m, mj.d);
 
+			// update Joint pos for test
+			if(2 < count){
+				double pos = qpos(mj)[0] + 0.1;
+				updateJointPosition(mj, "joint_torso", pos);
+			}
+
 			// createPath
-			if(2 == count){
-				WayPoints points;
-				int ret = createPath(mj, points);
-				if (ret != EXIT_SUCCESS) {
-					mju_error("Path planning failed.");
-				}
-			} 
+//			if(2 == count){
+//				WayPoints points;
+//				int ret = createPath(mj, points);
+//				if (ret != EXIT_SUCCESS) {
+//					mju_error("Path planning failed.");
+//				}
+//			} 
 			count++;
 		}
 
@@ -689,12 +706,12 @@ int main(int argc, const char** argv) {
 //		if (ec != EXIT_SUCCESS) return ec;
 		
 
-		auto drawMovedPath = [](MjSim& mj, Path& path, const Position& pos, const float rgba[4]) -> int {
-			if((path.points.back().point - pos).norm2()>0.0001) {
-				path.points.push_back({0.0, pos});
-			}
-			return drawPath(mj, path, rgba);
-		};
+//		auto drawMovedPath = [](MjSim& mj, Path& path, const Position& pos, const float rgba[4]) -> int {
+//			if((path.points.back().point - pos).norm2()>0.0001) {
+//				path.points.push_back({0.0, pos});
+//			}
+//			return drawPath(mj, path, rgba);
+//		};
 //		ec = drawMovedPath(mj, blueSphMovedPath, pos_ref, CLR_BLUE);
 //		if (ec != EXIT_SUCCESS) return ec;
 //		ec = drawMovedPath(mj, redSphMovedPath, pos_redSph, CLR_RED);
