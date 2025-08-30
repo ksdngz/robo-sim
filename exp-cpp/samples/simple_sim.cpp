@@ -568,7 +568,7 @@ public:
 	bool fk(
 		const std::array<double, DOF> q, 
 		Position& p, 
-		std::string sName = "site_gripper") 
+		std::string sName = "site_base") // "site_gripper"
 	{
 		for (int i = 0; i < mj_.m->nq; ++i) 
 			mj_.d->qpos[i] = q[i];
@@ -644,23 +644,23 @@ int main(int argc, const char** argv)
 	printf("Timestep: %f seconds\n", mj.m->opt.timestep);
 
 //	// Positions Definition
-	Positions blueSph_wp = {
-		{0.0, 0.0, 0.0},
-		{1.0, 0.0, 0.0},
-		{1.0, 0.5, 0.2},
-		{1.0, 1.5, 1.2},
-		{1.0, 1.5, 2.2}
-	};
+//	Positions blueSph_wp = {
+//		{0.0, 0.0, 0.0},
+//		{1.0, 0.0, 0.0},
+//		{1.0, 0.5, 0.2},
+//		{1.0, 1.5, 1.2},
+//		{1.0, 1.5, 2.2}
+//	};
 	Positions refPath;
 
 	// Create a SimplePathReader instance
-	Path blueSphPath;
-	int T = 200;  // Define the duration of the path
-	generatePath(blueSph_wp, blueSphPath);
-	SimplePathReader blueSphPathReader(blueSphPath, T);
+	// Path blueSphPath;
+	// generatePath(blueSph_wp, blueSphPath);
+	// int T = 200;  // Define the duration of the path
+	// SimplePathReader blueSphPathReader(blueSphPath, T);
 
 	Path blueSphMovedPath, redSphMovedPath, greenSphMovedPath;
-	blueSphMovedPath.points.push_back({0.0, blueSphPathReader.update()});
+	// blueSphMovedPath.points.push_back({0.0, blueSphPathReader.update()});
 	redSphMovedPath.points.push_back({0.0, {0.0, 0.0, 0.0}});
 	greenSphMovedPath.points.push_back({0.0, {0.0, 0.0, 0.0}});
 
@@ -679,6 +679,24 @@ int main(int argc, const char** argv)
 		while (mj.d->time - simstart < 1.0/60.0) {
 			mj_step(mj.m, mj.d);
 
+			// createPath
+			if(2 == count){
+				int ret = createPath(mj, qs);
+				if (ret != EXIT_SUCCESS) {
+					mju_error("Path planning failed.");
+				}
+				// Path blueSphPath;
+				// generatePath(qs, blueSphPath);
+				// blueSphMovedPath.points.push_back({0.0, blueSphPathReader.update()});
+
+				// fk: qs->ps
+				for (const auto& q : qs) {
+					Position p;
+					kin->fk(q, p);
+					ps.push_back(p);
+				}
+			} 
+
 			// update Joint pos for test
 			if(2 < count){
 				//std::string jname = "joint_torso";
@@ -691,19 +709,6 @@ int main(int argc, const char** argv)
 				updateJointPosition(mj, jname, pos);
 			}
 
-			// createPath
-			if(2 == count){
-				int ret = createPath(mj, qs);
-				if (ret != EXIT_SUCCESS) {
-					mju_error("Path planning failed.");
-				}
-				// fk: qs->ps
-				for (const auto& q : qs) {
-					Position p;
-					kin->fk(q, p);
-					ps.push_back(p);
-				}
-			} 
 			count++;
 		}
 
