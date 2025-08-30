@@ -24,7 +24,7 @@ using Spline3d = Eigen::Spline<double, 3>;
 const double RADIUS_SPH = 0.02;
 
 // global instance
-MjSim mj;
+MjSim mj(model_path);
 
 // Utility methods
 Eigen::VectorXd arrayToVector(const std::array<double, DOF> &a)
@@ -559,21 +559,38 @@ void updateJointPosition(MjSim& mj, const std::string& actName, double pos)
 	mj.d->ctrl[jointId] = pos;
 }
 
-
-int main(int argc, const char** argv) {
-
-	// Decide model file path
-	if (argc == 2) model_path = argv[1];
-
-	// load and compile model
-	char error[1000] = "Could not load model";
-	mj.m = mj_loadXML(model_path, 0, error, 1000);
-	if (!mj.m) {
-		mju_error("Load model error: %s", error);
+class Kinematics {
+public:
+	Kinematics(const std::string& modelPath)
+	: mj_(modelPath)
+	{
 	}
+	bool fk(
+		const std::array<double, DOF> q, 
+		Position& p, 
+		std::string sName = "site_gripper") 
+	{
+		for (int i = 0; i < mj_.m->nq; ++i) 
+			mj_.d->qpos[i] = q[i];
+		// optionally copy velocities if needed: 
+		// memcpy(d_tmp->qvel, d_main->qvel, sizeof(mjtNum)*m->nv);
+		mj_forward(mj_.m, mj_.d);
 
-	// make data
-	mj.d = mj_makeData(mj.m);
+		int sid = mj_name2id(mj_.m, mjOBJ_SITE, sName.c_str());
+		if (sid < 0) 
+			return false;
+		double* pos = mj_.d->site_xpos + 3*sid;
+		p = Position{pos[0], pos[1], pos[2]};
+		return true;
+	}
+private:
+	MjSim mj_;
+};
+
+int main(int argc, const char** argv) 
+{
+	// kinematics
+	std::shared_ptr<Kinematics> kin = std::make_shared<Kinematics>(model_path);
 
 	//  temp
 	Pose pose;
@@ -651,6 +668,9 @@ int main(int argc, const char** argv) {
 	SecondOrderDynamics redSph(0.1, 0.25, 1.0, {0.0, 0.0, 0.0});
 	SecondOrderDynamics greenSph(0.1, 0.25, 2.0, {0.0, 0.0, 0.0});
 
+	// reference path
+	WayPoints qs; // in Configuration space
+	Positions ps; // in Cartesian space
 
 	static int count = 0;
 	// run main loop, target real-time simulation and 60 fps rendering
@@ -672,13 +692,18 @@ int main(int argc, const char** argv) {
 			}
 
 			// createPath
-//			if(2 == count){
-//				WayPoints points;
-//				int ret = createPath(mj, points);
-//				if (ret != EXIT_SUCCESS) {
-//					mju_error("Path planning failed.");
-//				}
-//			} 
+			if(2 == count){
+				int ret = createPath(mj, qs);
+				if (ret != EXIT_SUCCESS) {
+					mju_error("Path planning failed.");
+				}
+				// fk: qs->ps
+				for (const auto& q : qs) {
+					Position p;
+					kin->fk(q, p);
+					ps.push_back(p);
+				}
+			} 
 			count++;
 		}
 
@@ -693,7 +718,7 @@ int main(int argc, const char** argv) {
 		// double dt = mj.d->time - simstart;
 		int ec = EXIT_SUCCESS;
 		if (show_refPath) {
-			ec = drawReferencePath(mj, blueSph_wp);
+			ec = drawReferencePath(mj, ps);
 			if (ec != EXIT_SUCCESS) return ec;
 		}
 

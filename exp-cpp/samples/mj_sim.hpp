@@ -4,7 +4,24 @@
 class MjSim
 {
 public:
-	MjSim(){}
+	MjSim(std::string modelPath)
+	{
+		// load and compile model
+		char error[1000] = "Could not load model";
+		m = mj_loadXML(modelPath.c_str(), 0, error, 1000);
+		if (!m) {
+			mju_error("Load model error: %s", error);
+		}
+
+		// make data
+		d = mj_makeData(m);
+	}
+	~MjSim()
+	{
+		mj_deleteData(d);
+		mj_deleteModel(m);
+	}
+
 	mjModel* m = NULL;
 	mjData* d = NULL;
 	mjvCamera cam;

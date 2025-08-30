@@ -8,7 +8,7 @@
 // const char* model_path = "../models/urdf/panda_arm/robot/panda_arm_mjcf.xml";
 
 // google_robot
-inline constexpr int DOF = 9;
+inline constexpr int DOF = 9+3;
 inline const char* model_path = "../models/urdf/mujoco_menagerie/google_robot/robot.xml";
 
 // color code(rgba)
