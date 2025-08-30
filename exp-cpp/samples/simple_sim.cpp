@@ -540,8 +540,9 @@ int createPath(MjSim& mj, WayPoints& points)
 	PathPlanningInput input;
 	input.start = vectorToArray(qpos(mj));
 	input.goal = vectorToArray(qpos(mj));
-	input.start[0] = -3; // j1:+0.5[rad]
-	input.goal[0] = 3; // j1:+0.5[rad]
+	input.goal[0] = 5; 
+//	input.goal[1] = 20;
+//	input.goal[2] = 1.72; 
 	int result = constraintPathPlanner->plan(input, points);
 	if (result != EXIT_SUCCESS) {
 		mju_error("Path planning failed.");
