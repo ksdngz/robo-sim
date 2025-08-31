@@ -556,7 +556,13 @@ int createPath(MjSim& mj, WayPoints& points)
 	PathPlanningInput input;
 	input.start = vectorToArray(qpos(mj));
 	input.goal = vectorToArray(qpos(mj));
-	input.goal[0] = 10; 
+
+
+	WayPoint w1 = input.start;
+	w1[0] = 5;
+	input.goal = w1;
+	input.goal[1] = 5;
+
 //	input.goal[1] = 20;
 //	input.goal[2] = 1.72; 
 // temprary disabled.
@@ -567,6 +573,7 @@ int createPath(MjSim& mj, WayPoints& points)
 
 // temprary added.
 	points.push_back(input.start);
+	points.push_back(w1);
 	points.push_back(input.goal);
 	int result = EXIT_SUCCESS;
 // temprary added end.
