@@ -105,12 +105,15 @@ static mjuiState uistate;   // state
 // live display of end-effector position in the UI (bound to mjui edit items)
 static double vis_ee[3] = {0.0, 0.0, 0.0};
 static double vis_base[3] = {0.0, 0.0, 0.0};
+// UI selection for which labels to show (pulldown)
+static int label_choice = 1; // default: 1 -> Geom
 
 // Build minimal UI with a radio button group to toggle spline visibility
 static void build_ui(const mjrContext* con) {
 	mjuiDef def[] = {
 		{ mjITEM_SECTION, "Display", 0, nullptr, "" },
 		{ mjITEM_RADIO,   "Path", 1, &show_refPath, "Off\nOn" },
+	{ mjITEM_SELECT,  "Labels", 1, &label_choice, "None\nGeom\nSite\nJoint\nBody\nContactPoint" },
 		{ mjITEM_SECTION, "Geometry", 0, nullptr, "" },
 		{ mjITEM_EDITNUM, "EE", 1, &vis_ee, "3" },
 		{ mjITEM_EDITNUM, "BASE", 1, &vis_base, "3" },
@@ -784,7 +787,17 @@ int main(int argc, const char** argv)
 
 //		printf("dt: %f, ngeom: %d\n", dt, mj.scn.ngeom);
 
-		mj.opt.label = mjLABEL_GEOM;
+		// Map UI selection to mj.opt.label
+		switch (label_choice) {
+			case 0: mj.opt.label = mjLABEL_NONE; break;
+			case 1: mj.opt.label = mjLABEL_GEOM; break; // Geom
+			case 2: mj.opt.label = mjLABEL_SITE; break; // Site
+			case 3: mj.opt.label = mjLABEL_JOINT; break; // Joint
+			case 4: mj.opt.label = mjLABEL_BODY; break; // Body
+			case 5: mj.opt.label = mjLABEL_CONTACTPOINT; break; // Contact point
+			default: mj.opt.label = mjLABEL_GEOM; break;
+		}
+
 		mjv_addGeoms(mj.m, mj.d, &mj.opt, NULL, mjCAT_DECOR, &mj.scn);
 
 		// 3D表示領域 (rect[2]) へ描画
