@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <algorithm>
 #include <array>
 #include <initializer_list>
 #include <vector>
@@ -113,7 +114,7 @@ static void build_ui(const mjrContext* con) {
 	mjuiDef def[] = {
 		{ mjITEM_SECTION, "Display", 0, nullptr, "" },
 		{ mjITEM_RADIO,   "Path", 1, &show_refPath, "Off\nOn" },
-	{ mjITEM_SELECT,  "Labels", 1, &label_choice, "None\nGeom\nSite\nJoint\nBody\nContactPoint" },
+		{ mjITEM_SELECT,  "Labels", 1, &label_choice, "None\nGeom\nSite\nJoint\nBody\nContactPoint" },
 		{ mjITEM_SECTION, "Geometry", 0, nullptr, "" },
 		{ mjITEM_EDITNUM, "EE", 1, &vis_ee, "3" },
 		{ mjITEM_EDITNUM, "BASE", 1, &vis_base, "3" },
@@ -553,7 +554,7 @@ int createPath(MjSim& mj, WayPoints& points)
 	PathPlanningInput input;
 	input.start = vectorToArray(qpos(mj));
 	input.goal = vectorToArray(qpos(mj));
-	input.goal[0] = 5; 
+	input.goal[0] = 10; 
 //	input.goal[1] = 20;
 //	input.goal[2] = 1.72; 
 	int result = constraintPathPlanner->plan(input, points);
@@ -599,6 +600,152 @@ public:
 	}
 private:
 	MjSim mj_;
+};
+
+class ContinuousPath
+{
+public:
+	ContinuousPath(): waypoints_(){}
+	void generate(const WayPoints& waypoints)
+	{
+		waypoints_ = waypoints;
+		n_ = static_cast<int>(waypoints_.size());
+		if (n_ <= 1) return; // nothing to build
+
+		// parameter spacing: s in [0,1], equally spaced
+		h_ = 1.0 / static_cast<double>(std::max(1, n_ - 1));
+
+		// allocate M (second derivatives) per dof
+		M_.assign(DOF, std::vector<double>(n_, 0.0));
+
+		// For each DOF, build natural cubic spline second derivatives
+		for (int dim = 0; dim < DOF; ++dim) {
+			// collect y values
+			std::vector<double> y(n_);
+			for (int i = 0; i < n_; ++i) y[i] = waypoints_[i][dim];
+			computeNaturalSecondDerivatives(y, M_[dim]);
+		}
+	}
+
+	// evaluate q(s) for s in [0,1]
+	std::array<double, DOF> q(double s)
+	{
+		std::array<double, DOF> out{};
+		if (n_ == 0) return out;
+		if (n_ == 1) return waypoints_[0];
+
+		double sc = std::min(1.0, std::max(0.0, s));
+		// find segment index
+		int idx;
+		if (sc >= 1.0) {
+			idx = n_ - 2;
+		} else {
+			idx = static_cast<int>(sc / h_);
+			if (idx < 0) idx = 0;
+			if (idx > n_ - 2) idx = n_ - 2;
+		}
+		double si = idx * h_;
+		double si1 = si + h_;
+
+		for (int dim = 0; dim < DOF; ++dim) {
+			const double* M = M_[dim].data();
+			double yi = waypoints_[idx][dim];
+			double yi1 = waypoints_[idx+1][dim];
+			double xi = si;
+			double xi1 = si1;
+			double x = sc;
+			double A = (xi1 - x) / h_;
+			double B = (x - xi) / h_;
+			// cubic spline formula using normalized barycentric coords A,B
+			double val = M[idx] * (A*A*A) * (h_ * h_) / 6.0
+					   + M[idx+1] * (B*B*B) * (h_ * h_) / 6.0
+					   + (yi - M[idx] * h_ * h_ / 6.0) * A
+					   + (yi1 - M[idx+1] * h_ * h_ / 6.0) * B;
+			out[dim] = val;
+		}
+		return out;
+	}
+
+	// derivative dq/ds
+	std::array<double, DOF> dq(double s)
+	{
+		std::array<double, DOF> out{};
+		if (n_ == 0) return out;
+		if (n_ == 1) return out; // zero derivative
+
+		double sc = std::min(1.0, std::max(0.0, s));
+		int idx;
+		if (sc >= 1.0) {
+			idx = n_ - 2;
+		} else {
+			idx = static_cast<int>(sc / h_);
+			if (idx < 0) idx = 0;
+			if (idx > n_ - 2) idx = n_ - 2;
+		}
+		double si = idx * h_;
+		double si1 = si + h_;
+		double x = sc;
+
+		for (int dim = 0; dim < DOF; ++dim) {
+			const std::vector<double>& Mv = M_[dim];
+			double yi = waypoints_[idx][dim];
+			double yi1 = waypoints_[idx+1][dim];
+			// derivative formula
+			double term1 = - Mv[idx] * (si1 - x) * (si1 - x) / (2.0 * h_);
+			double term2 =   Mv[idx+1] * (x - si) * (x - si) / (2.0 * h_);
+			double term3 = (yi1 - yi) / h_ - (h_ / 6.0) * (Mv[idx+1] - Mv[idx]);
+			out[dim] = term1 + term2 + term3;
+		}
+		return out;
+	}
+
+private:
+	WayPoints waypoints_;
+	int n_ = 0;
+	double h_ = 0.0; // uniform spacing
+	// M_[dim][i] second derivative at knot i for each dimension
+	std::vector<std::vector<double>> M_;
+
+	// compute natural cubic spline second derivatives (M) for scalar y values
+	void computeNaturalSecondDerivatives(const std::vector<double>& y, std::vector<double>& M_out)
+	{
+		int n = static_cast<int>(y.size());
+		M_out.assign(n, 0.0);
+		if (n <= 1) return;
+
+		// build tridiagonal system: lower, diag, upper, rhs
+		std::vector<double> lower(n, 0.0), diag(n, 0.0), upper(n, 0.0), rhs(n, 0.0);
+		// natural spline boundary
+		diag[0] = 1.0; rhs[0] = 0.0;
+		diag[n-1] = 1.0; rhs[n-1] = 0.0;
+
+		// interior equations
+		for (int i = 1; i < n-1; ++i) {
+			lower[i] = h_;
+			diag[i]  = 2.0 * (h_ + h_);
+			upper[i] = h_;
+			rhs[i] = 6.0 * ( (y[i+1] - y[i]) / h_ - (y[i] - y[i-1]) / h_ );
+		}
+
+		// Thomas algorithm
+		// forward
+		for (int i = 1; i < n; ++i) {
+			if (diag[i-1] == 0.0) continue;
+			double w = lower[i] / diag[i-1];
+			diag[i] -= w * upper[i-1];
+			rhs[i]  -= w * rhs[i-1];
+		}
+		// back substitution
+		if (diag[n-1] == 0.0) return;
+		M_out[n-1] = rhs[n-1] / diag[n-1];
+		for (int i = n-2; i >= 0; --i) {
+			double up = (i < n-1) ? upper[i] : 0.0;
+			double d = diag[i];
+			double r = rhs[i];
+			double next = (i+1 < n) ? M_out[i+1] : 0.0;
+			if (d == 0.0) M_out[i] = 0.0; else M_out[i] = (r - up * next) / d;
+		}
+	}
 };
 
 int main(int argc, const char** argv) 
@@ -683,8 +830,9 @@ int main(int argc, const char** argv)
 	SecondOrderDynamics greenSph(0.1, 0.25, 2.0, {0.0, 0.0, 0.0});
 
 	// reference path
-	WayPoints qs; // in Configuration space
+	ContinuousPath contPath;
 	Positions ps; // in Cartesian space
+	double s = 0; // rate of path
 
 	static int count = 0;
 	// run main loop, target real-time simulation and 60 fps rendering
@@ -695,10 +843,12 @@ int main(int argc, const char** argv)
 
 			// createPath
 			if(2 == count){
+				WayPoints qs; // in Configuration space
 				int ret = createPath(mj, qs);
 				if (ret != EXIT_SUCCESS) {
 					mju_error("Path planning failed.");
 				}
+				contPath.generate(qs);
 				// Path blueSphPath;
 				// generatePath(qs, blueSphPath);
 				// blueSphMovedPath.points.push_back({0.0, blueSphPathReader.update()});
@@ -713,14 +863,23 @@ int main(int argc, const char** argv)
 
 			// update Joint pos for test
 			if(2 < count){
-				//std::string jname = "joint_torso";
-				std::string jname = "joint_base_x";
-				int jointId = mj_name2id(mj.m, mjOBJ_JOINT, jname.c_str());
-				if (jointId < 0) {
-					mju_error("Joint not found: %s", jname.c_str());
-				}
-				double pos = qpos(mj)[jointId] + 0.1;
-				updateJointPosition(mj, jname, pos);
+				auto updateS = [&](){
+					s += 0.01;
+					s = std::clamp(s, 0.0, 1.0);
+				};
+				updateS();
+				auto q = contPath.q(s);
+				//int jointId = mj_name2id(mj.m, mjOBJ_JOINT, jname.c_str());
+				//if (jointId < 0) {
+				//	mju_error("Joint not found: %s", jname.c_str());
+				//}
+				//double pos = qpos(mj)[jointId] + 0.1;
+				std::string joint_base_x = "joint_base_x";
+				std::string joint_base_y = "joint_base_y";
+				std::string joint_base_yaw = "joint_base_yaw";
+				updateJointPosition(mj, joint_base_x, q[0]);
+				updateJointPosition(mj, joint_base_y, q[1]);
+				updateJointPosition(mj, joint_base_yaw, q[2]);
 			}
 
 			count++;
