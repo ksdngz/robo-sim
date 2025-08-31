@@ -106,6 +106,7 @@ static mjuiState uistate;   // state
 // live display of end-effector position in the UI (bound to mjui edit items)
 static double vis_ee[3] = {0.0, 0.0, 0.0};
 static double vis_base[3] = {0.0, 0.0, 0.0};
+static double vis_s = 0.0;
 // UI selection for which labels to show (pulldown)
 static int label_choice = 1; // default: 1 -> Geom
 
@@ -118,6 +119,7 @@ static void build_ui(const mjrContext* con) {
 		{ mjITEM_SECTION, "Geometry", 0, nullptr, "" },
 		{ mjITEM_EDITNUM, "EE", 1, &vis_ee, "3" },
 		{ mjITEM_EDITNUM, "BASE", 1, &vis_base, "3" },
+		{ mjITEM_EDITNUM, "s", 1, &vis_s, "1" },
 		{ mjITEM_END,     "", 0, nullptr, "" }
 	};
 	mjui_add(&ui0, def);
@@ -557,10 +559,17 @@ int createPath(MjSim& mj, WayPoints& points)
 	input.goal[0] = 10; 
 //	input.goal[1] = 20;
 //	input.goal[2] = 1.72; 
-	int result = constraintPathPlanner->plan(input, points);
-	if (result != EXIT_SUCCESS) {
-		mju_error("Path planning failed.");
-	}
+// temprary disabled.
+//	int result = constraintPathPlanner->plan(input, points);
+//	if (result != EXIT_SUCCESS) {
+//		mju_error("Path planning failed.");
+//	}
+
+// temprary added.
+	points.push_back(input.start);
+	points.push_back(input.goal);
+	int result = EXIT_SUCCESS;
+// temprary added end.
 	return result;
 }
 
@@ -864,7 +873,7 @@ int main(int argc, const char** argv)
 			// update Joint pos for test
 			if(2 < count){
 				auto updateS = [&](){
-					s += 0.01;
+					s += 0.001;
 					s = std::clamp(s, 0.0, 1.0);
 				};
 				updateS();
@@ -907,6 +916,9 @@ int main(int argc, const char** argv)
 			vis_base[0] = basePose.pos[0];
 			vis_base[1] = basePose.pos[1];
 			vis_base[2] = basePose.pos[2];
+		}
+		{
+			vis_s = s;
 		}
 
 		// double dt = mj.d->time - simstart;
