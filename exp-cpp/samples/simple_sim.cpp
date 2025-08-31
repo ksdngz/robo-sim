@@ -116,7 +116,7 @@ static void build_ui(const mjrContext* con) {
 		{ mjITEM_SECTION, "Display", 0, nullptr, "" },
 		{ mjITEM_RADIO,   "Path", 1, &show_refPath, "Off\nOn" },
 		{ mjITEM_SELECT,  "Labels", 1, &label_choice, "None\nGeom\nSite\nJoint\nBody\nContactPoint" },
-		{ mjITEM_SECTION, "Geometry", 0, nullptr, "" },
+		{ mjITEM_SECTION, "Geometry", 1, nullptr, "" },
 		{ mjITEM_EDITNUM, "EE", 1, &vis_ee, "3" },
 		{ mjITEM_EDITNUM, "BASE", 1, &vis_base, "3" },
 		{ mjITEM_EDITNUM, "s", 1, &vis_s, "1" },
