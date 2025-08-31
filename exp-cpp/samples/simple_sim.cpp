@@ -102,12 +102,18 @@ using Positions = std::vector<Position>;
 static int show_refPath = 1; // 1=ON, 0=OFF
 static mjUI ui0;            // single UI panel
 static mjuiState uistate;   // state
+// live display of end-effector position in the UI (bound to mjui edit items)
+static double vis_ee[3] = {0.0, 0.0, 0.0};
+static double vis_base[3] = {0.0, 0.0, 0.0};
 
 // Build minimal UI with a radio button group to toggle spline visibility
 static void build_ui(const mjrContext* con) {
 	mjuiDef def[] = {
 		{ mjITEM_SECTION, "Display", 0, nullptr, "" },
-		{ mjITEM_RADIO,   "Reference Path", 1, &show_refPath, "Off\nOn" },
+		{ mjITEM_RADIO,   "Path", 1, &show_refPath, "Off\nOn" },
+		{ mjITEM_SECTION, "Geometry", 0, nullptr, "" },
+		{ mjITEM_EDITNUM, "EE", 1, &vis_ee, "3" },
+		{ mjITEM_EDITNUM, "BASE", 1, &vis_base, "3" },
 		{ mjITEM_END,     "", 0, nullptr, "" }
 	};
 	mjui_add(&ui0, def);
@@ -507,13 +513,13 @@ public:
 	}
 };
 
-void getSitePose(const mjModel* m, mjData* d, const char* siteName, Pose& pose)
+void getSitePose(const MjSim& mj, const char* siteName, Pose& pose)
 {
-    int sid = mj_name2id(m, mjOBJ_SITE, siteName);
+    int sid = mj_name2id(mj.m, mjOBJ_SITE, siteName);
     if (sid < 0) throw std::runtime_error("site not found");
-    mj_forward(m, d);
-    double* p = d->site_xpos + 3*sid;
-    double* R = d->site_xmat + 9*sid; // 3x3 行列（row-major）
+    mj_forward(mj.m, mj.d);
+    double* p = mj.d->site_xpos + 3*sid;
+    double* R = mj.d->site_xmat + 9*sid; // 3x3 行列（row-major）
     double q[4];
     mju_mat2Quat(q, R); // q: {w, x, y, z}
     Eigen::Vector3d pos(p[0], p[1], p[2]);
@@ -531,7 +537,11 @@ VectorXd qpos(const MjSim& mj)
 
 void getEEPose(const MjSim& mj, Pose& pose) 
 {
-	getSitePose(mj.m, mj.d, "site_gripper", pose);
+	getSitePose(mj, "site_gripper", pose);
+}
+void getBasePose(const MjSim& mj, Pose& pose) 
+{
+	getSitePose(mj, "site_base", pose);
 }
 
 int createPath(MjSim& mj, WayPoints& points)
@@ -720,6 +730,22 @@ int main(int argc, const char** argv)
 
 		// Update the scene first (this resets scn.ngeom)
 		mjv_updateScene(mj.m, mj.d, &mj.opt, NULL, &mj.cam, mjCAT_ALL, &mj.scn);
+
+		// Update live EE position variables used by the UI (site name: "site_gripper")
+		{
+			Pose eePose;
+			getEEPose(mj, eePose);
+			vis_ee[0] = eePose.pos[0];
+			vis_ee[1] = eePose.pos[1];
+			vis_ee[2] = eePose.pos[2];
+		}
+		{
+			Pose basePose;
+			getBasePose(mj, basePose);
+			vis_base[0] = basePose.pos[0];
+			vis_base[1] = basePose.pos[1];
+			vis_base[2] = basePose.pos[2];
+		}
 
 		// double dt = mj.d->time - simstart;
 		int ec = EXIT_SUCCESS;
