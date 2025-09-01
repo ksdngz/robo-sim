@@ -62,6 +62,8 @@ public:
 	Position(double x_, double y_, double z_) : x(x_), y(y_), z(z_) {}
 	Position(const Position&) = default;
 	Position(Position&&) noexcept = default;
+	Position(const Eigen::Vector3d& vec) : x(vec[0]), y(vec[1]), z(vec[2]) {}
+	Position(Eigen::Vector3d& vec) : x(vec[0]), y(vec[1]), z(vec[2]) {}
 
 	Position operator+(const Position& rhs) const {return {x + rhs.x, y + rhs.y, z + rhs.z};}
 	Position operator-(const Position& rhs) const {return {x - rhs.x, y - rhs.y, z - rhs.z};}
@@ -73,6 +75,14 @@ public:
 	Position& operator=(Position&& other) noexcept = default;
 	Position& operator=(const std::array<double,3>& arr) {
 		x = arr[0]; y = arr[1]; z = arr[2];
+		return *this;
+	}
+	Position& operator=(const Eigen::Vector3d& vec) {
+		x = vec[0]; y = vec[1]; z = vec[2];
+		return *this;
+	}
+	Position& operator=(Eigen::Vector3d& vec) {
+		x = vec[0]; y = vec[1]; z = vec[2];
 		return *this;
 	}
 	// assign from initializer_list<double> of size 3: {x,y,z}
@@ -299,9 +309,9 @@ int drawReferencePath(
 	if (wp.size() < 2) return EXIT_SUCCESS;
 
 	// Draw Positions
-	double boxSize = 0.01;
+	double boxSize = 0.03;
 	for (const auto& pt : wp) {
-		if (drawBox(mj, pt, boxSize, CLR_PURPLE, "") != EXIT_SUCCESS)
+		if (drawBox(mj, pt, boxSize, CLR_GREEN, "") != EXIT_SUCCESS)
 			return EXIT_FAILURE;
 	}
 
@@ -333,15 +343,14 @@ int drawWayPoint(
 
 int drawPath(
 	MjSim& mj,
-	const Path& path,
+	std::vector<Position>& points,
 	const float rgba[4])
 {
-	const std::vector<PathPoint>& points = path.points;
-	Position prev = points[0].point;
+	Position prev = points[0];
 	for (const auto& pt : points) {
-		if (drawLine(mj, prev, pt.point, rgba) != EXIT_SUCCESS) 
+		if (drawLine(mj, prev, pt, rgba) != EXIT_SUCCESS) 
 			return EXIT_FAILURE;
-		prev = pt.point;
+		prev = pt;
 	}
 	return EXIT_SUCCESS;
 }
@@ -836,6 +845,8 @@ int main(int argc, const char** argv)
 	// int T = 200;  // Define the duration of the path
 	// SimplePathReader blueSphPathReader(blueSphPath, T);
 
+	std::vector<Position> movedPositionPoints;
+	movedPositionPoints.push_back({0.0, 0.0, 0.0});
 	Path blueSphMovedPath, redSphMovedPath, greenSphMovedPath;
 	// blueSphMovedPath.points.push_back({0.0, blueSphPathReader.update()});
 	redSphMovedPath.points.push_back({0.0, {0.0, 0.0, 0.0}});
@@ -950,14 +961,21 @@ int main(int argc, const char** argv)
 //		if (ec != EXIT_SUCCESS) return ec;
 		
 
-//		auto drawMovedPath = [](MjSim& mj, Path& path, const Position& pos, const float rgba[4]) -> int {
-//			if((path.points.back().point - pos).norm2()>0.0001) {
-//				path.points.push_back({0.0, pos});
-//			}
-//			return drawPath(mj, path, rgba);
-//		};
-//		ec = drawMovedPath(mj, blueSphMovedPath, pos_ref, CLR_BLUE);
-//		if (ec != EXIT_SUCCESS) return ec;
+		auto drawMovedPath = [](
+			MjSim& mj,
+			const Position& newPos,
+			std::vector<Position>& points, 
+			const float rgba[4]) -> int {
+				Position prev = points.back();
+				if((prev - newPos).norm2()>0.0001) {
+					points.push_back(newPos);
+				}
+				return drawPath(mj, points, rgba);
+			};
+		Pose basePose;
+		getBasePose(mj, basePose);
+		ec = drawMovedPath(mj, basePose.pos, movedPositionPoints, CLR_BLUE);
+		if (ec != EXIT_SUCCESS) return ec;
 //		ec = drawMovedPath(mj, redSphMovedPath, pos_redSph, CLR_RED);
 //		if (ec != EXIT_SUCCESS) return ec;
 //		ec = drawMovedPath(mj, greenSphMovedPath, pos_greenSph, CLR_GREEN);
