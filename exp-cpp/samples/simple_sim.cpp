@@ -309,7 +309,7 @@ int drawReferencePath(
 	if (wp.size() < 2) return EXIT_SUCCESS;
 
 	// Draw Positions
-	double boxSize = 0.03;
+	double boxSize = 0.05;
 	for (const auto& pt : wp) {
 		if (drawBox(mj, pt, boxSize, CLR_GREEN, "") != EXIT_SUCCESS)
 			return EXIT_FAILURE;
@@ -322,7 +322,7 @@ int drawReferencePath(
 	Position prev = points[0];
 
 	for (const auto& pt : points) {
-		if (drawLine(mj, prev, pt, CLR_YELLOW) != EXIT_SUCCESS) 
+		if (drawLine(mj, prev, pt, CLR_BLUE) != EXIT_SUCCESS) 
 			return EXIT_FAILURE;
 		prev = pt;
 	}
@@ -817,9 +817,10 @@ int main(int argc, const char** argv)
 	// カメラ初期化: モデル中心とスケールに基づき俯瞰
 	mj_forward(mj.m, mj.d);
 	for(int i=0;i<3;i++) mj.cam.lookat[i] = mj.m->stat.center[i];
-	mj.cam.distance = 2.0 * mj.m->stat.extent;
-	mj.cam.elevation = -20.0;
-	mj.cam.azimuth = 90.0;
+	mj.cam.lookat[0] += 3.0; // x +1 
+	mj.cam.distance = 5.0 * mj.m->stat.extent;
+	mj.cam.elevation = -60.0;
+	mj.cam.azimuth = 75.0;
 
 	// install GLFW mouse and keyboard callbacks
 	glfwSetKeyCallback(window, keyboard);
@@ -845,8 +846,13 @@ int main(int argc, const char** argv)
 	// int T = 200;  // Define the duration of the path
 	// SimplePathReader blueSphPathReader(blueSphPath, T);
 
-	std::vector<Position> movedPositionPoints;
-	movedPositionPoints.push_back({0.0, 0.0, 0.0});
+	std::vector<Position> movedBasePoints;
+	movedBasePoints.push_back({0.0, 0.0, 0.0});
+
+	std::vector<Position> movedEEPoints;
+	movedEEPoints.push_back({0.0, 0.0, 0.0});
+
+
 	Path blueSphMovedPath, redSphMovedPath, greenSphMovedPath;
 	// blueSphMovedPath.points.push_back({0.0, blueSphPathReader.update()});
 	redSphMovedPath.points.push_back({0.0, {0.0, 0.0, 0.0}});
@@ -912,11 +918,10 @@ int main(int argc, const char** argv)
 			count++;
 		}
 
-	mjrRect viewport_full = {0, 0, 0, 0};
-	glfwGetFramebufferSize(window, &viewport_full.width, &viewport_full.height);
-	process_ui_events(window, &mj.con, viewport_full.width, viewport_full.height);
-	ui_per_frame(&mj.con, viewport_full.width, viewport_full.height);
-
+		mjrRect viewport_full = {0, 0, 0, 0};
+		glfwGetFramebufferSize(window, &viewport_full.width, &viewport_full.height);
+		process_ui_events(window, &mj.con, viewport_full.width, viewport_full.height);
+		ui_per_frame(&mj.con, viewport_full.width, viewport_full.height);
 		// Update the scene first (this resets scn.ngeom)
 		mjv_updateScene(mj.m, mj.d, &mj.opt, NULL, &mj.cam, mjCAT_ALL, &mj.scn);
 
@@ -974,8 +979,13 @@ int main(int argc, const char** argv)
 			};
 		Pose basePose;
 		getBasePose(mj, basePose);
-		ec = drawMovedPath(mj, basePose.pos, movedPositionPoints, CLR_BLUE);
+		ec = drawMovedPath(mj, basePose.pos, movedBasePoints, CLR_YELLOW);
 		if (ec != EXIT_SUCCESS) return ec;
+		Pose EEPose;
+		getEEPose(mj, EEPose);
+		ec = drawMovedPath(mj, EEPose.pos, movedEEPoints, CLR_GREEN);
+		if (ec != EXIT_SUCCESS) return ec;
+
 //		ec = drawMovedPath(mj, redSphMovedPath, pos_redSph, CLR_RED);
 //		if (ec != EXIT_SUCCESS) return ec;
 //		ec = drawMovedPath(mj, greenSphMovedPath, pos_greenSph, CLR_GREEN);
