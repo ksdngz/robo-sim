@@ -130,12 +130,56 @@ static void build_ui(const mjrContext* con) {
 		{ mjITEM_EDITNUM, "EE", 1, &vis_ee, "3" },
 		{ mjITEM_EDITNUM, "BASE", 1, &vis_base, "3" },
 		{ mjITEM_EDITNUM, "s", 1, &vis_s, "1" },
+		{ mjITEM_EDITINT, "geom", 1, &mj.scn.ngeom, "1" },
 		{ mjITEM_END,     "", 0, nullptr, "" }
 	};
 	mjui_add(&ui0, def);
 	if (ui0.nsect > 0) ui0.sect[0].state = mjSECT_OPEN; // セクション展開
 	ui0.spacing = mjui_themeSpacing(0);
 	ui0.color   = mjui_themeColor(0);
+
+	// Add Joint sliders section and one slider per hinge/slide joint
+	mjuiDef sectJoints[] = {
+		{ mjITEM_SECTION, "Joints", 1, nullptr, "" },
+		{ mjITEM_END,     "", 0, nullptr, "" }
+	};
+	mjui_add(&ui0, sectJoints);
+
+	// template slider, will be customized per joint
+	mjuiDef defSlider[] = {
+		{ mjITEM_SLIDERNUM, "", 2, nullptr, "0 1" },
+		{ mjITEM_END,       "", 0, nullptr, "" }
+	};
+
+	for (int j = 0; j < mj.m->njnt; ++j) {
+		int type = mj.m->jnt_type[j];
+		if (type != mjJNT_HINGE && type != mjJNT_SLIDE) continue; // only scalar joints
+
+		// bind directly to qpos for this joint
+		int qadr = mj.m->jnt_qposadr[j];
+		defSlider[0].pdata = &mj.d->qpos[qadr];
+
+		// name
+		const char* jname = mj_id2name(mj.m, mjOBJ_JOINT, j);
+		if (jname && jname[0] != '\0') {
+			strncpy_s(defSlider[0].name, sizeof(defSlider[0].name), jname, _TRUNCATE);
+		} else {
+			snprintf(defSlider[0].name, sizeof(defSlider[0].name), "joint %d", j);
+		}
+
+		// set range: use model limits if available, otherwise sensible defaults
+		if (mj.m->jnt_limited[j]) {
+			double lo = mj.m->jnt_range[2*j + 0];
+			double hi = mj.m->jnt_range[2*j + 1];
+			snprintf(defSlider[0].other, sizeof(defSlider[0].other), "%.6g %.6g", lo, hi);
+		} else if (type == mjJNT_HINGE) {
+			strncpy_s(defSlider[0].other, sizeof(defSlider[0].other), "-3.1416 3.1416", _TRUNCATE);
+		} else { // slider
+			strncpy_s(defSlider[0].other, sizeof(defSlider[0].other), "-1 1", _TRUNCATE);
+		}
+
+		mjui_add(&ui0, defSlider);
+	}
 	mjui_resize(&ui0, con);
 }
 
@@ -162,8 +206,8 @@ static void process_ui_events(GLFWwindow* window, const mjrContext* con, int fbw
 	else if (!left_now && prev_left) { uistate.type = mjEVENT_RELEASE; uistate.button = mjBUTTON_LEFT; }
 	else uistate.type = mjEVENT_MOVE;
 	uistate.left = left_now;
-	if (in_ui && uistate.type != mjEVENT_MOVE) {
-		mjui_event(&ui0, &uistate, con); // show_spline更新
+	if (in_ui) {
+		mjui_event(&ui0, &uistate, con); // propagate all UI events including MOVE
 	}
 	prev_left = left_now;
 }
@@ -589,11 +633,11 @@ int createPath(MjSim& mj, WayPoints& points)
 	return result;
 }
 
-void updateJointPosition(MjSim& mj, const std::string& actName, double pos)
+void updateJointPosition(MjSim& mj, const std::string& jointName, double pos)
 {
-	int jointId = mj_name2id(mj.m, mjOBJ_JOINT, actName.c_str());
+	int jointId = mj_name2id(mj.m, mjOBJ_JOINT, jointName.c_str());
 	if (jointId < 0) {
-		mju_error("Joint not found: %s", actName.c_str());
+		mju_error("Joint not found: %s", jointName.c_str());
 		return;
 	}
 	mj.d->ctrl[jointId] = pos;
