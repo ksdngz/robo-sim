@@ -12,9 +12,10 @@
 #include <mujoco/mjui.h>
 #include <Eigen/Dense>
 #include <unsupported/Eigen/Splines>
-// Embedding Python
 #include <Python.h>
 #include "robot_def.hpp"
+#include "common/Position.hpp"
+#include "common/SecondOrderDynamics.hpp"
 #include "./mj_sim.hpp"
 #include "./constraint_path_planner.hpp"
 
@@ -50,61 +51,6 @@ std::array<double, DOF> vectorToArray(const Eigen::VectorXd &v, bool throwOnSize
     return out;
 }
 
-class Position
-{
-public:
-	double x;
-	double y;
-	double z;
-
-	// constructors (rule of five minimal set)
-	Position() = default;
-	Position(double x_, double y_, double z_) : x(x_), y(y_), z(z_) {}
-	Position(const Position&) = default;
-	Position(Position&&) noexcept = default;
-	Position(const Eigen::Vector3d& vec) : x(vec[0]), y(vec[1]), z(vec[2]) {}
-	Position(Eigen::Vector3d& vec) : x(vec[0]), y(vec[1]), z(vec[2]) {}
-
-	Position operator+(const Position& rhs) const {return {x + rhs.x, y + rhs.y, z + rhs.z};}
-	Position operator-(const Position& rhs) const {return {x - rhs.x, y - rhs.y, z - rhs.z};}
-	operator std::array<double,3>() const { return {x, y, z};}
-	double norm2() const { return std::sqrt(x * x + y * y + z * z);}
-
-	// -------- assignment operators --------
-	Position& operator=(const Position& other) = default;
-	Position& operator=(Position&& other) noexcept = default;
-	Position& operator=(const std::array<double,3>& arr) {
-		x = arr[0]; y = arr[1]; z = arr[2];
-		return *this;
-	}
-	Position& operator=(const Eigen::Vector3d& vec) {
-		x = vec[0]; y = vec[1]; z = vec[2];
-		return *this;
-	}
-	Position& operator=(Eigen::Vector3d& vec) {
-		x = vec[0]; y = vec[1]; z = vec[2];
-		return *this;
-	}
-	// assign from initializer_list<double> of size 3: {x,y,z}
-	Position& operator=(std::initializer_list<double> list) {
-		if (list.size() == 3) {
-			auto it = list.begin();
-			x = *it++; y = *it++; z = *it;
-		}
-		return *this;
-	}
-
-	// -------- compound assignment --------
-	Position& operator+=(const Position& rhs) { x+=rhs.x; y+=rhs.y; z+=rhs.z; return *this; }
-	Position& operator-=(const Position& rhs) { x-=rhs.x; y-=rhs.y; z-=rhs.z; return *this; }
-	Position& operator*=(double s) { x*=s; y*=s; z*=s; return *this; }
-	Position& operator/=(double s) { x/=s; y/=s; z/=s; return *this; }
-
-	// non-const returning scalar ops
-	friend Position operator*(Position lhs, double s){ lhs*=s; return lhs; }
-	friend Position operator*(double s, Position rhs){ rhs*=s; return rhs; }
-	friend Position operator/(Position lhs, double s){ lhs/=s; return lhs; }
-};
 
 using Positions = std::vector<Position>;
 
@@ -532,31 +478,6 @@ private:
 	Spline3d spline_;
 	bool splineValid_;
 	int T_;
-};
-
-// Second-order-delayed system (Position type supported)
-class SecondOrderDynamics {
-public:
-	// Parameters: inertia m, damping ratio zeta, natural angular frequency omega
-	double m;
-	double zeta;
-	double omega; // rad/s
-	Position y;    // Output (position)
-	Position yd;   // First derivative (velocity)
-
-	SecondOrderDynamics(double m_, double zeta_, double omega_, const Position& initp)
-		: m(m_), zeta(zeta_), omega(omega_), y(initp), yd{0,0,0} {}
-
-	// ref: reference input, dt: control timestep
-	// Continuous system: y'' + 2*zeta*omega*y' + omega^2 * y = omega^2 * ref
-	// Numerical integration: Forward Euler (extendable to Heun / Runge-Kutta if needed)
-	Position update(const Position& ref, double dt) {
-		// ydd = ω^2 (ref - y) - 2 ζ ω yd
-		Position ydd = (ref - y) * (omega * omega) - yd * (2.0 * zeta * omega);
-		yd += ydd * dt;
-		y  += yd * dt;
-		return y;
-	}
 };
 
 class Pose

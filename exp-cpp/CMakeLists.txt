@@ -11,7 +11,7 @@ set(MUJOCO_ROOT "${CMAKE_SOURCE_DIR}/mujoco-3.3.5")
 include_directories(${MUJOCO_ROOT}/include)
 link_directories(${MUJOCO_ROOT}/lib)
 
-# Sample source
+# simple sim
 set(SOURCES
     samples/simple_sim.cpp
     samples/constraint_path_planner.cpp
@@ -20,8 +20,28 @@ set(SOURCES
     samples/path_planner.hpp
     samples/mj_sim.hpp
     samples/robot_def.hpp
+    common/SecondOrderDynamics.hpp
+    common/Position.hpp
 )
 add_executable(simple_sim ${SOURCES})
+
+# python sim
+# ------------------------------------------------
+set(SOURCES_PYSIM
+    pysim/pysim.cpp
+	common/SecondOrderDynamics.hpp
+    common/Position.hpp
+)
+add_executable(pysim ${SOURCES_PYSIM})
+target_include_directories(pysim
+	PRIVATE 
+	${EIGEN_DIR} 
+	${EIGEN_UNSUPPORTED_DIR} 
+	${CMAKE_SOURCE_DIR}
+)
+
+# ------------------------------------------------
+
 
 # GLFW manual include/lib
 set(GLFW_ROOT "${CMAKE_SOURCE_DIR}/third_party/glfw")
@@ -51,6 +71,7 @@ target_include_directories(simple_sim
 	${EIGEN_DIR} 
 	${EIGEN_UNSUPPORTED_DIR} 
 	${MUJOCO_ROOT}/include
+	${CMAKE_SOURCE_DIR}
 )
 target_link_directories(simple_sim
 	PRIVATE 
@@ -125,15 +146,22 @@ endif()
 set(_PY_INCLUDE_DIR "${EMBED_PYTHON_DIR}/Include")
 if (EXISTS "${_PY_INCLUDE_DIR}/Python.h")
     target_include_directories(simple_sim PRIVATE "${_PY_INCLUDE_DIR}")
+    target_include_directories(pysim PRIVATE "${_PY_INCLUDE_DIR}")
 else()
     message(FATAL_ERROR "Python headers not found at ${_PY_INCLUDE_DIR}. Run bootstrap.bat to fetch headers.")
 endif()
 
 target_link_libraries(simple_sim PRIVATE "${_PY_LINK}")
+target_link_libraries(pysim PRIVATE "${_PY_LINK}")
 
 if (WIN32)
     # Suppress search for non-existent debug import libraries (common for embeddable distro)
     target_link_options(simple_sim PRIVATE 
+        $<$<CONFIG:Debug>:/NODEFAULTLIB:python39_d.lib>
+        $<$<CONFIG:Debug>:/NODEFAULTLIB:python310_d.lib>
+        $<$<CONFIG:Debug>:/NODEFAULTLIB:python311_d.lib>
+    )
+    target_link_options(pysim PRIVATE 
         $<$<CONFIG:Debug>:/NODEFAULTLIB:python39_d.lib>
         $<$<CONFIG:Debug>:/NODEFAULTLIB:python310_d.lib>
         $<$<CONFIG:Debug>:/NODEFAULTLIB:python311_d.lib>
