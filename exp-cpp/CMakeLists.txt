@@ -40,6 +40,17 @@ target_include_directories(pysim
 	${CMAKE_SOURCE_DIR}
 )
 
+# Prevent accidental definition of Py_DEBUG (which would require a debug-build Python lib exporting _Py_RefTotal etc.).
+# Observed link errors:
+#   undefined symbol: _Py_RefTotal / _Py_NegativeRefcount
+# These occur if Py_DEBUG/Py_REF_DEBUG are defined while linking against release embeddable python310.lib.
+# Force undefine for all configs.
+if (MSVC)
+    target_compile_options(pysim PRIVATE /UPy_DEBUG /UPy_REF_DEBUG /UPy_TRACE_REFS)
+endif()
+# NOTE: Removed Py_NO_ENABLE_SHARED: defining it broke dllimport of _Py_TrueStruct/_Py_FalseStruct
+# when linking against the shared/embeddable python import library (python310.lib).
+
 # ------------------------------------------------
 
 
@@ -86,7 +97,7 @@ target_link_libraries(simple_sim
 	"${boost_INCLUDE_LIBS}/libboost_serialization-vc143-mt-gd-1_84.lib"
 	"${boost_INCLUDE_LIBS}/libboost_program_options-vc143-mt-gd-1_84.lib"
 #	For Release
-#	"${boost_INCLUDE_LIBS}/libboost_serialization-vc143-mt-1_84.lib"
+#	"${boost_INCLUDE_LIBS}/libboos_t_serialization-vc143-mt-1_84.lib"
 #	"${boost_INCLUDE_LIBS}/libboost_program_options-vc143-mt-1_84.lib"
 	mujoco
 	"${GLFW_ROOT}/lib/glfw3.lib"
@@ -105,13 +116,25 @@ if (WIN32)
             $<TARGET_FILE_DIR:simple_sim>)
 endif()
 
+# Copy mujoco.dll for pysim as well
+if (WIN32)
+    add_custom_command(TARGET pysim POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${MUJOCO_ROOT}/mujoco.dll"
+            $<TARGET_FILE_DIR:pysim>)
+endif()
+
 if (WIN32)
     set(EMBED_PYTHON_DIR "${CMAKE_SOURCE_DIR}/third_party/python")
-    if (EXISTS "${EMBED_PYTHON_DIR}/python310.dll")
+    if (EXISTS "${EMBED_PYTHON_DIR}/python39_d.dll")
         add_custom_command(TARGET simple_sim POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${EMBED_PYTHON_DIR}/python310.dll"
+                "${EMBED_PYTHON_DIR}/python39_d.dll"
                 $<TARGET_FILE_DIR:simple_sim>)
+        add_custom_command(TARGET pysim POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${EMBED_PYTHON_DIR}/python39_d.dll"
+                $<TARGET_FILE_DIR:pysim>)
     endif()
 endif()
 
@@ -122,24 +145,64 @@ if (NOT EXISTS "${EMBED_PYTHON_DIR}/python.exe")
     message(FATAL_ERROR "Embedded Python not found at ${EMBED_PYTHON_DIR}. Run bootstrap.bat to install it.")
 endif()
 
-# Determine import library (support common names across minor versions)
-set(_PY_CANDIDATE_LIBS
-    "${EMBED_PYTHON_DIR}/python310.lib"
-    "${EMBED_PYTHON_DIR}/python311.lib"
-    "${EMBED_PYTHON_DIR}/python39.lib"
-    "${EMBED_PYTHON_DIR}/libs/python310.lib"   # legacy layout safety
-    "${EMBED_PYTHON_DIR}/libs/python39.lib"
-)
+option(USE_PY_DEBUG "Force use of debug Python library (python*_d.lib) if available" OFF)
+
 set(_PY_LINK "")
-foreach(lib ${_PY_CANDIDATE_LIBS})
+set(_PY_FOUND_MODE "")
+
+if (USE_PY_DEBUG)
+    set(_PY_CANDIDATE_LIBS_FIRST
+        "${EMBED_PYTHON_DIR}/python39_d.lib"
+        "${EMBED_PYTHON_DIR}/python310_d.lib"
+        "${EMBED_PYTHON_DIR}/python311_d.lib"
+    )
+    set(_PY_CANDIDATE_LIBS_SECOND
+        "${EMBED_PYTHON_DIR}/python310.lib"
+        "${EMBED_PYTHON_DIR}/python311.lib"
+        "${EMBED_PYTHON_DIR}/python39.lib"
+        "${EMBED_PYTHON_DIR}/libs/python310.lib"
+        "${EMBED_PYTHON_DIR}/libs/python39.lib"
+    )
+else()
+    # Prefer release first (allows importing pre-built wheels like numpy / matplotlib).
+    set(_PY_CANDIDATE_LIBS_FIRST
+        "${EMBED_PYTHON_DIR}/python310.lib"
+        "${EMBED_PYTHON_DIR}/python311.lib"
+        "${EMBED_PYTHON_DIR}/python39.lib"
+        "${EMBED_PYTHON_DIR}/libs/python310.lib"
+        "${EMBED_PYTHON_DIR}/libs/python39.lib"
+    )
+    set(_PY_CANDIDATE_LIBS_SECOND
+        "${EMBED_PYTHON_DIR}/python39_d.lib"
+        "${EMBED_PYTHON_DIR}/python310_d.lib"
+        "${EMBED_PYTHON_DIR}/python311_d.lib"
+    )
+endif()
+
+foreach(lib ${_PY_CANDIDATE_LIBS_FIRST})
     if (EXISTS "${lib}")
         set(_PY_LINK "${lib}")
+        set(_PY_FOUND_MODE "primary")
         break()
     endif()
 endforeach()
 
 if (NOT _PY_LINK)
-    message(FATAL_ERROR "No suitable Python import library (e.g., python310.lib or python39.lib) found in ${EMBED_PYTHON_DIR}. Ensure bootstrap copied the .lib file.")
+    foreach(lib ${_PY_CANDIDATE_LIBS_SECOND})
+        if (EXISTS "${lib}")
+            set(_PY_LINK "${lib}")
+            set(_PY_FOUND_MODE "fallback")
+            break()
+        endif()
+    endforeach()
+endif()
+
+if (NOT _PY_LINK)
+    message(FATAL_ERROR "No suitable Python import library found in ${EMBED_PYTHON_DIR}. Place a release (pythonXY.lib) or debug (pythonXY_d.lib) embeddable distribution there.")
+endif()
+
+if (NOT USE_PY_DEBUG AND _PY_FOUND_MODE STREQUAL "fallback")
+    message(WARNING "Fell back to debug Python library '${_PY_LINK}'. Pre-built wheels (numpy/matplotlib) may fail to import under debug Python. Consider adding release pythonXY.lib to ${EMBED_PYTHON_DIR}.")
 endif()
 
 # Header path: only support ${EMBED_PYTHON_DIR}/Include
@@ -165,6 +228,7 @@ if (WIN32)
         $<$<CONFIG:Debug>:/NODEFAULTLIB:python39_d.lib>
         $<$<CONFIG:Debug>:/NODEFAULTLIB:python310_d.lib>
         $<$<CONFIG:Debug>:/NODEFAULTLIB:python311_d.lib>
+    /NODEFAULTLIB:python39.lib
     )
 endif()
 
