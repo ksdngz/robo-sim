@@ -55,129 +55,298 @@ std::array<double, DOF> vectorToArray(const Eigen::VectorXd &v, bool throwOnSize
 using Positions = std::vector<Position>;
 
 
-// UI state for spline toggle
-static int show_refPath = 1; // 1=ON, 0=OFF
-static mjUI ui0;            // single UI panel
-static mjuiState uistate;   // state
-// live display of end-effector position in the UI (bound to mjui edit items)
-static double vis_ee[3] = {0.0, 0.0, 0.0};
-static double vis_base[3] = {0.0, 0.0, 0.0};
-static double vis_s = 0.0;
-// UI selection for which labels to show (pulldown)
-static int label_choice = 1; // default: 1 -> Geom
+// ---------------------- Refactor: Classes for Renderer, UI, and Drawing ----------------------
 
-// Build minimal UI with a radio button group to toggle spline visibility
-static void build_ui(const mjrContext* con) {
-	mjuiDef def[] = {
-		{ mjITEM_SECTION, "Display", 0, nullptr, "" },
-		{ mjITEM_RADIO,   "Path", 1, &show_refPath, "Off\nOn" },
-		{ mjITEM_SELECT,  "Labels", 1, &label_choice, "None\nGeom\nSite\nJoint\nBody\nContactPoint" },
-		{ mjITEM_SECTION, "Geometry", 1, nullptr, "" },
-		{ mjITEM_EDITNUM, "EE", 1, &vis_ee, "3" },
-		{ mjITEM_EDITNUM, "BASE", 1, &vis_base, "3" },
-		{ mjITEM_EDITNUM, "s", 1, &vis_s, "1" },
-		{ mjITEM_EDITINT, "geom", 1, &mj.scn.ngeom, "1" },
-		{ mjITEM_END,     "", 0, nullptr, "" }
-	};
-	mjui_add(&ui0, def);
-	if (ui0.nsect > 0) ui0.sect[0].state = mjSECT_OPEN; // セクション展開
-	ui0.spacing = mjui_themeSpacing(0);
-	ui0.color   = mjui_themeColor(0);
+// Spline sampling used by GeometryPrims::referencePath
+static inline void catmullRomSplinePoints(const Positions& wp,
+										  std::vector<Position>& out_points,
+										  int num_steps = 20) {
+	out_points.clear();
+	if (wp.size() < 2) {
+		out_points = wp;
+		return;
+	}
+	// duplicate endpoints for simple Catmull-Rom handling
+	Positions ctrl;
+	ctrl.reserve(wp.size() + 2);
+	ctrl.push_back(wp.front());
+	ctrl.insert(ctrl.end(), wp.begin(), wp.end());
+	ctrl.push_back(wp.back());
 
-	// Add Joint sliders section and one slider per hinge/slide joint
-	mjuiDef sectJoints[] = {
-		{ mjITEM_SECTION, "Joints", 1, nullptr, "" },
-		{ mjITEM_END,     "", 0, nullptr, "" }
-	};
-	mjui_add(&ui0, sectJoints);
-
-	// template slider, will be customized per joint
-	mjuiDef defSlider[] = {
-		{ mjITEM_SLIDERNUM, "", 2, nullptr, "0 1" },
-		{ mjITEM_END,       "", 0, nullptr, "" }
-	};
-
-	for (int j = 0; j < mj.m->njnt; ++j) {
-		int type = mj.m->jnt_type[j];
-		if (type != mjJNT_HINGE && type != mjJNT_SLIDE) continue; // only scalar joints
-
-		// bind directly to qpos for this joint
-		int qadr = mj.m->jnt_qposadr[j];
-		defSlider[0].pdata = &mj.d->qpos[qadr];
-
-		// name
-		const char* jname = mj_id2name(mj.m, mjOBJ_JOINT, j);
-		if (jname && jname[0] != '\0') {
-			strncpy_s(defSlider[0].name, sizeof(defSlider[0].name), jname, _TRUNCATE);
-		} else {
-			snprintf(defSlider[0].name, sizeof(defSlider[0].name), "joint %d", j);
+	for (size_t i = 0; i + 3 < ctrl.size(); ++i) {
+		const auto& p0 = ctrl[i+0];
+		const auto& p1 = ctrl[i+1];
+		const auto& p2 = ctrl[i+2];
+		const auto& p3 = ctrl[i+3];
+		for (int s = 0; s <= num_steps; ++s) {
+			double t = static_cast<double>(s) / num_steps;
+			double t2 = t * t;
+			double t3 = t2 * t;
+			auto blend = [&](double p0v, double p1v, double p2v, double p3v) {
+				return 0.5 * ((2.0 * p1v) +
+							  (-p0v + p2v) * t +
+							  (2.0 * p0v - 5.0 * p1v + 4.0 * p2v - p3v) * t2 +
+							  (-p0v + 3.0 * p1v - 3.0 * p2v + p3v) * t3);
+			};
+			Position q;
+			q.x = blend(p0.x, p1.x, p2.x, p3.x);
+			q.y = blend(p0.y, p1.y, p2.y, p3.y);
+			q.z = blend(p0.z, p1.z, p2.z, p3.z);
+			out_points.push_back(q);
 		}
+	}
+}
 
-		// set range: use model limits if available, otherwise sensible defaults
-		if (mj.m->jnt_limited[j]) {
-			double lo = mj.m->jnt_range[2*j + 0];
-			double hi = mj.m->jnt_range[2*j + 1];
-			snprintf(defSlider[0].other, sizeof(defSlider[0].other), "%.6g %.6g", lo, hi);
-		} else if (type == mjJNT_HINGE) {
-			strncpy_s(defSlider[0].other, sizeof(defSlider[0].other), "-3.1416 3.1416", _TRUNCATE);
-		} else { // slider
-			strncpy_s(defSlider[0].other, sizeof(defSlider[0].other), "-1 1", _TRUNCATE);
+// Geometry drawing utility: adds simple primitives to the scene.
+class GeometryPrims {
+public:
+	GeometryPrims(mjvScene& scn, mjData* d) : scn_(scn), d_(d) {}
+
+	bool geom(mjtGeom type,
+			  const mjtNum size[3],
+			  const mjtNum pos[3],
+			  const mjtNum mat[9],
+			  const float rgba[4],
+			  std::string_view name) {
+		if (scn_.ngeom >= scn_.maxgeom) {
+			if (d_) mj_warning(d_, mjWARN_VGEOMFULL, scn_.maxgeom);
+			return false;
 		}
-
-		mjui_add(&ui0, defSlider);
+		mjvGeom* g = scn_.geoms + scn_.ngeom;
+		memset(g, 0, sizeof(mjvGeom));
+		mjv_initGeom(g, type, size, pos, mat, rgba);
+		g->objtype = mjOBJ_UNKNOWN;
+		g->objid = -1;
+		g->category = mjCAT_DECOR;
+		g->segid = scn_.ngeom;
+		if (!name.empty()) {
+			strncpy_s(g->label, sizeof(g->label), std::string(name).c_str(), _TRUNCATE);
+		}
+		scn_.ngeom++;
+		return true;
 	}
-	mjui_resize(&ui0, con);
-}
 
-// Simple mouse->ui event helper (minimal subset)
-static void process_ui_events(GLFWwindow* window, const mjrContext* con, int fbw, int fbh) {
-	static int prev_left = 0;
-	double x,y; glfwGetCursorPos(window,&x,&y);
-	int w=fbw, h=fbh; // framebufferサイズ使用
-	memset(&uistate, 0, sizeof(uistate));
-	// rect[0]=全体, rect[1]=UI, rect[2]=3D表示領域
-	uistate.nrect = 3;
-	uistate.rect[0].left = 0; uistate.rect[0].bottom = 0; uistate.rect[0].width = w; uistate.rect[0].height = h;
-	uistate.rect[1].left = 0; uistate.rect[1].bottom = 0; uistate.rect[1].width = ui0.width; uistate.rect[1].height = h;
-	int remain = w - ui0.width; if(remain<0) remain = 0;
-	uistate.rect[2].left = ui0.width; uistate.rect[2].bottom = 0; uistate.rect[2].width = remain; uistate.rect[2].height = h;
-	uistate.x = (int)x;
-	uistate.y = h - (int)y;
-	int left_now = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT)==GLFW_PRESS);
-	int uiwidth = ui0.width;
-	bool in_ui = (uistate.x < uiwidth);
-	// UIはrectid=1を使用
-	uistate.mouserect = in_ui ? ui0.rectid : -1;
-	if (left_now && !prev_left) { uistate.type = mjEVENT_PRESS; uistate.button = mjBUTTON_LEFT; }
-	else if (!left_now && prev_left) { uistate.type = mjEVENT_RELEASE; uistate.button = mjBUTTON_LEFT; }
-	else uistate.type = mjEVENT_MOVE;
-	uistate.left = left_now;
-	if (in_ui) {
-		mjui_event(&ui0, &uistate, con); // propagate all UI events including MOVE
+	bool sphere(const Position& p, double radius, const float rgba[4], std::string_view name = {}) {
+		mjtNum size[3] = { (mjtNum)radius, 0, 0 };
+		mjtNum R[9] = {1,0,0, 0,1,0, 0,0,1};
+		return geom(mjGEOM_SPHERE, size, &p.x, R, rgba, name);
 	}
-	prev_left = left_now;
-}
 
-// Minimal per-frame UI maintenance (resize + update) similar to simulate's UiModify
-// simple layout: rect[0]=full window, rect[1]=UI, rect[2]=3D viewport
-static void ui_per_frame(mjrContext* con, int fbw, int fbh);
-
-// ui_per_frame 定義（毎フレーム UI サイズと補助FBO確認）
-static void ui_per_frame(mjrContext* con, int fbw, int fbh) {
-	mjui_resize(&ui0, con);
-	int id = ui0.auxid;
-	if (con->auxFBO[id] == 0 ||
-		con->auxFBO_r[id] == 0 ||
-		con->auxColor[id] == 0 ||
-		con->auxColor_r[id] == 0 ||
-		con->auxWidth[id] != ui0.width ||
-		con->auxHeight[id] != ui0.maxheight ||
-		con->auxSamples[id] != ui0.spacing.samples) {
-		mjr_addAux(id, ui0.width, ui0.maxheight, ui0.spacing.samples, con);
+	bool box(const Position& center, double halfExtent, const float rgba[4], std::string_view name = {}) {
+		mjtNum size[3] = { (mjtNum)halfExtent, (mjtNum)halfExtent, (mjtNum)halfExtent };
+		mjtNum R[9] = {1,0,0, 0,1,0, 0,0,1};
+		return geom(mjGEOM_BOX, size, &center.x, R, rgba, name);
 	}
-	// UIレイアウト（rect[1]使用）
-	mjui_update(-1, -1, &ui0, &uistate, con);
-}
+
+	bool line(const Position& from, const Position& to, const float rgba[4], double width = 0.05) {
+		if (scn_.ngeom >= scn_.maxgeom) {
+			if (d_) mj_warning(d_, mjWARN_VGEOMFULL, scn_.maxgeom);
+			return false;
+		}
+		mjvGeom* g = scn_.geoms + scn_.ngeom;
+		memset(g, 0, sizeof(mjvGeom));
+		mjv_initGeom(g, mjGEOM_NONE, nullptr, nullptr, nullptr, rgba);
+		g->objtype = mjOBJ_UNKNOWN;
+		g->objid = -1;
+		g->category = mjCAT_DECOR;
+		g->segid = scn_.ngeom;
+		mjv_connector(g, mjGEOM_LINE, (mjtNum)width, &from.x, &to.x);
+		scn_.ngeom++;
+		return true;
+	}
+
+	// Helpers
+	bool referencePath(const std::vector<Position>& wp) {
+		if (wp.size() < 2) return true;
+		std::vector<Position> sampled; sampled.reserve(wp.size() * 20);
+		catmullRomSplinePoints(wp, sampled, 20);
+		static constexpr float kRefRGBA[4] = {0.1f, 0.7f, 1.0f, 1.0f};
+		return path(sampled, kRefRGBA);
+	}
+
+	bool path(std::vector<Position>& pts, const float rgba[4]) {
+		if (pts.size() < 2) return true;
+		for (size_t i = 1; i < pts.size(); ++i) {
+			if (!line(pts[i-1], pts[i], rgba, 0.02)) return false;
+		}
+		return true;
+	}
+
+	bool waypoints(const std::vector<Position>& pts, double size, const float rgba[4]) {
+		for (const auto& p : pts) {
+			if (!box(p, size, rgba)) return false;
+		}
+		return true;
+	}
+
+private:
+	mjvScene& scn_;
+	mjData* d_{};
+};
+
+// Renderer wrapper: handles mjv/mjr lifecycle and frame flow.
+class MuJoCoRenderer {
+public:
+	explicit MuJoCoRenderer(MjSim& sim) : sim_(sim) {}
+
+	void init(int maxgeom = 2000) {
+		mjv_defaultCamera(&sim_.cam);
+		mjv_defaultOption(&sim_.opt);
+		mjv_defaultScene(&sim_.scn);
+		mjr_defaultContext(&sim_.con);
+		mjv_makeScene(sim_.m, &sim_.scn, maxgeom);
+		sim_.scn.flags[mjCAT_DECOR] = 1;
+		mjr_makeContext(sim_.m, &sim_.con, mjFONTSCALE_150);
+	}
+
+	void beginFrame() {
+		mjv_updateScene(sim_.m, sim_.d, &sim_.opt, nullptr, &sim_.cam, mjCAT_ALL, &sim_.scn);
+	}
+
+	void addModelDecorations() {
+		mjv_addGeoms(sim_.m, sim_.d, &sim_.opt, nullptr, mjCAT_DECOR, &sim_.scn);
+	}
+
+	void render(const mjrRect& rect) {
+		mjr_render(rect, &sim_.scn, &sim_.con);
+	}
+
+	mjrContext* context() { return &sim_.con; }
+	mjvScene& scene() { return sim_.scn; }
+
+private:
+	MjSim& sim_;
+};
+
+// UI wrapper: builds and drives mjUI with the same layout across programs.
+class MuJoCoUI {
+public:
+	MuJoCoUI() {
+		memset(&ui_, 0, sizeof(ui_));
+		ui_.spacing = mjui_themeSpacing(0);
+		ui_.color = mjui_themeColor(0);
+		ui_.predicate = nullptr;
+		ui_.rectid = 1; // rect[1] is UI
+		ui_.auxid = 0;
+		vis_ee_[0]=vis_ee_[1]=vis_ee_[2]=0.0;
+		vis_base_[0]=vis_base_[1]=vis_base_[2]=0.0;
+		vis_s_ = 0.0;
+	}
+
+	void buildDefaultPanels(MjSim& sim, const mjrContext* con) {
+		mjuiDef def[] = {
+			{ mjITEM_SECTION, "Display", 0, nullptr, "" },
+			{ mjITEM_RADIO,   "Path", 1, &show_refPath_, "Off\nOn" },
+			{ mjITEM_SELECT,  "Labels", 1, &label_choice_, "None\nGeom\nSite\nJoint\nBody\nContactPoint" },
+			{ mjITEM_SECTION, "Geometry", 1, nullptr, "" },
+			{ mjITEM_EDITNUM, "EE", 1, &vis_ee_, "3" },
+			{ mjITEM_EDITNUM, "BASE", 1, &vis_base_, "3" },
+			{ mjITEM_EDITNUM, "s", 1, &vis_s_, "1" },
+			{ mjITEM_EDITINT, "geom", 1, &sim.scn.ngeom, "1" },
+			{ mjITEM_END,     "", 0, nullptr, "" }
+		};
+		mjui_add(&ui_, def);
+		if (ui_.nsect > 0) ui_.sect[0].state = mjSECT_OPEN;
+
+		// Joints section
+		mjuiDef sectJoints[] = {
+			{ mjITEM_SECTION, "Joints", 1, nullptr, "" },
+			{ mjITEM_END,     "", 0, nullptr, "" }
+		};
+		mjui_add(&ui_, sectJoints);
+
+		// Template slider, customized per joint
+		mjuiDef defSlider[] = {
+			{ mjITEM_SLIDERNUM, "", 2, nullptr, "0 1" },
+			{ mjITEM_END,       "", 0, nullptr, "" }
+		};
+
+		for (int j = 0; j < sim.m->njnt; ++j) {
+			int type = sim.m->jnt_type[j];
+			if (type != mjJNT_HINGE && type != mjJNT_SLIDE) continue;
+			int qadr = sim.m->jnt_qposadr[j];
+			defSlider[0].pdata = const_cast<mjtNum*>(&sim.d->qpos[qadr]);
+			const char* jname = mj_id2name(sim.m, mjOBJ_JOINT, j);
+			if (jname && jname[0] != '\0') {
+				strncpy_s(defSlider[0].name, sizeof(defSlider[0].name), jname, _TRUNCATE);
+			} else {
+				snprintf(defSlider[0].name, sizeof(defSlider[0].name), "joint %d", j);
+			}
+			if (sim.m->jnt_limited[j]) {
+				double lo = sim.m->jnt_range[2*j + 0];
+				double hi = sim.m->jnt_range[2*j + 1];
+				snprintf(defSlider[0].other, sizeof(defSlider[0].other), "%.6g %.6g", lo, hi);
+			} else if (type == mjJNT_HINGE) {
+				strncpy_s(defSlider[0].other, sizeof(defSlider[0].other), "-3.1416 3.1416", _TRUNCATE);
+			} else {
+				strncpy_s(defSlider[0].other, sizeof(defSlider[0].other), "-1 1", _TRUNCATE);
+			}
+			mjui_add(&ui_, defSlider);
+		}
+		mjui_resize(&ui_, con);
+	}
+
+	void processEvents(GLFWwindow* window, const mjrContext* con, int fbw, int fbh) {
+		static int prev_left = 0;
+		double x,y; glfwGetCursorPos(window,&x,&y);
+		int w=fbw, h=fbh;
+		memset(&state_, 0, sizeof(state_));
+		state_.nrect = 3;
+		state_.rect[0].left = 0; state_.rect[0].bottom = 0; state_.rect[0].width = w; state_.rect[0].height = h;
+		state_.rect[1].left = 0; state_.rect[1].bottom = 0; state_.rect[1].width = ui_.width; state_.rect[1].height = h;
+		int remain = w - ui_.width; if(remain<0) remain = 0;
+		state_.rect[2].left = ui_.width; state_.rect[2].bottom = 0; state_.rect[2].width = remain; state_.rect[2].height = h;
+		state_.x = (int)x;
+		state_.y = h - (int)y;
+		int left_now = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT)==GLFW_PRESS);
+		bool in_ui = (state_.x < ui_.width);
+		state_.mouserect = in_ui ? ui_.rectid : -1;
+		if (left_now && !prev_left) { state_.type = mjEVENT_PRESS; state_.button = mjBUTTON_LEFT; }
+		else if (!left_now && prev_left) { state_.type = mjEVENT_RELEASE; state_.button = mjBUTTON_LEFT; }
+		else state_.type = mjEVENT_MOVE;
+		state_.left = left_now;
+		if (in_ui) {
+			mjui_event(&ui_, &state_, con);
+		}
+		prev_left = left_now;
+	}
+
+	void perFrameLayout(mjrContext* con, int fbw, int fbh) {
+		mjui_resize(&ui_, con);
+		int id = ui_.auxid;
+		if (con->auxFBO[id] == 0 ||
+			con->auxFBO_r[id] == 0 ||
+			con->auxColor[id] == 0 ||
+			con->auxColor_r[id] == 0 ||
+			con->auxWidth[id] != ui_.width ||
+			con->auxHeight[id] != ui_.maxheight ||
+			con->auxSamples[id] != ui_.spacing.samples) {
+			mjr_addAux(id, ui_.width, ui_.maxheight, ui_.spacing.samples, con);
+		}
+		mjui_update(-1, -1, &ui_, &state_, con);
+	}
+
+	void render(mjrContext* con) {
+		mjui_render(&ui_, &state_, con);
+	}
+
+	mjrRect view3dRect() const { return state_.rect[2]; }
+	bool showRefPath() const { return show_refPath_ != 0; }
+	int labelChoice() const { return label_choice_; }
+
+	void setEE(const double ee[3]) { vis_ee_[0]=ee[0]; vis_ee_[1]=ee[1]; vis_ee_[2]=ee[2]; }
+	void setBase(const double base[3]) { vis_base_[0]=base[0]; vis_base_[1]=base[1]; vis_base_[2]=base[2]; }
+	void setS(double s) { vis_s_ = s; }
+
+private:
+	mjUI ui_{};
+	mjuiState state_{};
+	int show_refPath_ = 1;
+	int label_choice_ = 1;
+	double vis_ee_[3];
+	double vis_base_[3];
+	double vis_s_{};
+};
 
 struct PathPoint
 {
@@ -190,160 +359,8 @@ public:
 	std::vector<PathPoint> points;
 };
 
-void catmullRomSplinePoints(const Positions& wp, std::vector<Position>& out_points, int num_steps = 20) {
-	if (wp.size() < 2) return;
-	for (size_t i = 0; i + 1 < wp.size(); ++i) {
-		const Position& p0 = (i == 0) ? wp[0] : wp[i-1];
-		const Position& p1 = wp[i];
-		const Position& p2 = wp[i+1];
-		const Position& p3 = (i+2 < wp.size()) ? wp[i+2] : wp[wp.size()-1];
-		for (int j = 1; j <= num_steps; ++j) {
-			double t = (double)j / num_steps;
-			Position pt;
-			pt.x = 0.5 * ((2.0 * p1.x) +
-				(-p0.x + p2.x) * t +
-				(2.0*p0.x - 5.0*p1.x + 4.0*p2.x - p3.x) * t * t +
-				(-p0.x + 3.0*p1.x - 3.0*p2.x + p3.x) * t * t * t);
-			pt.y = 0.5 * ((2.0 * p1.y) +
-				(-p0.y + p2.y) * t +
-				(2.0*p0.y - 5.0*p1.y + 4.0*p2.y - p3.y) * t * t +
-				(-p0.y + 3.0*p1.y - 3.0*p2.y + p3.y) * t * t * t);
-			pt.z = 0.5 * ((2.0 * p1.z) +
-				(-p0.z + p2.z) * t +
-				(2.0*p0.z - 5.0*p1.z + 4.0*p2.z - p3.z) * t * t +
-				(-p0.z + 3.0*p1.z - 3.0*p2.z + p3.z) * t * t * t);
-			out_points.push_back(pt);
-		}
-	}
-}
 
-int drawGeom(
-	enum mjtGeom_ geom, 
-	MjSim& mj,
-	const Position& pt,
-	const mjtNum size[3],
-	const mjtNum pos[3], 
-	const mjtNum mat[9], 
-	const float rgba[4],
-	std::string name)
-{
-	if ( mj.scn.ngeom>=mj.scn.maxgeom ) {
-		mj_warning(mj.d, mjWARN_VGEOMFULL, mj.scn.maxgeom);
-		return EXIT_FAILURE;
-	}
-	mjvScene& scn(mj.scn);
-    mjvGeom *g = scn.geoms + scn.ngeom;
-	memset(g, 0, sizeof(mjvGeom));
-
-    // Add it to the scene
-	mjv_initGeom(g, geom, size, pos, mat, rgba);
-    g->objtype = mjOBJ_UNKNOWN;
-    g->objid = -1;
-    g->category = mjCAT_DECOR;
-    g->segid = scn.ngeom;
-	strncpy_s(g->label, sizeof(g->label), name.c_str(), _TRUNCATE);
-
-	scn.ngeom++;
-	return EXIT_SUCCESS;	
-}
-
-int drawSph(
-	MjSim& mj,
-	const Position& pt,
-	const float rgba[4],
-	std::string name)
-{ 
-	mjtNum sphsize[3] = {RADIUS_SPH, 0, 0};
-    mjtNum myrot3x3[9] = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
-	return drawGeom(mjGEOM_SPHERE, mj, pt, sphsize, &pt.x, myrot3x3, rgba, name);
-}
-
-int drawBox(
-	MjSim& mj,
-	const Position& pt,
-	double radius,
-	const float rgba[4],
-	std::string name)
-{ 
-	mjtNum boxsize[3] = {radius, radius, radius};
-    mjtNum myrot3x3[9] = {1., 0., 0., 0., 1., 0., 0., 0., 1.};
-	return drawGeom(mjGEOM_BOX, mj, pt, boxsize, &pt.x, myrot3x3, rgba, name);
-}
-
-int drawLine(
-	MjSim& mj,
-	const Position& from,
-	const Position& to,
-	const float rgba[4])
-{
-	if ( mj.scn.ngeom>=mj.scn.maxgeom ) {
-		mj_warning(mj.d, mjWARN_VGEOMFULL, mj.scn.maxgeom);
-		return EXIT_FAILURE;
-	}
-	mjvGeom* g = mj.scn.geoms + mj.scn.ngeom;
-	memset(g, 0, sizeof(mjvGeom));
-	mjv_initGeom(g, mjGEOM_NONE, NULL, NULL, NULL, rgba);
-	g->objtype = mjOBJ_UNKNOWN;
-	g->objid = -1;
-	g->category = mjCAT_DECOR;
-	g->segid = mj.scn.ngeom;
-	mjv_connector(g, mjGEOM_LINE, 0.05, &from.x, &to.x);
-	mj.scn.ngeom++;
-	return EXIT_SUCCESS;
-}
-
-int drawReferencePath(
-	MjSim& mj,
-	const Positions& wp)
-{
-	if (wp.size() < 2) return EXIT_SUCCESS;
-
-	// Draw Positions
-	double boxSize = 0.05;
-	for (const auto& pt : wp) {
-		if (drawBox(mj, pt, boxSize, CLR_GREEN, "") != EXIT_SUCCESS)
-			return EXIT_FAILURE;
-	}
-
-	// Draw Catmull-Rom spline
-	std::vector<Position> points;
-	catmullRomSplinePoints(wp, points);
-	if (points.empty()) return EXIT_SUCCESS;
-	Position prev = points[0];
-
-	for (const auto& pt : points) {
-		if (drawLine(mj, prev, pt, CLR_BLUE) != EXIT_SUCCESS) 
-			return EXIT_FAILURE;
-		prev = pt;
-	}
-	return EXIT_SUCCESS;
-}
-
-int drawWayPoint(
-	MjSim& mj,
-	const Positions& points)
-{
-	double radius = 0.02;
-	for (const auto& pt : points) {
-		if (drawBox(mj, pt, radius, CLR_PURPLE, "") != EXIT_SUCCESS)
-			return EXIT_FAILURE;
-	}
-	return EXIT_SUCCESS;
-}
-
-int drawPath(
-	MjSim& mj,
-	std::vector<Position>& points,
-	const float rgba[4])
-{
-	Position prev = points[0];
-	for (const auto& pt : points) {
-		if (drawLine(mj, prev, pt, rgba) != EXIT_SUCCESS) 
-			return EXIT_FAILURE;
-		prev = pt;
-	}
-	return EXIT_SUCCESS;
-}
+// ---------------------- End refactor section ----------------------
 
 void create3rdSpline(
 	const Positions& wp,
@@ -740,6 +757,7 @@ private:
 
 int main(int argc, const char** argv) 
 {
+	printf("kita0\n");	
 	// kinematics
 	std::shared_ptr<Kinematics> kin = std::make_shared<Kinematics>(model_path);
 
@@ -753,31 +771,17 @@ int main(int argc, const char** argv)
 		mju_error("Could not initialize GLFW");
 	}
 
+	printf("kita1\n");	
 	// create window, make OpenGL context current, request v-sync
 	GLFWwindow* window = glfwCreateWindow(1200, 900, "MuJoCo Simple Sim", NULL, NULL);
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1);
 
-	// initialize visualization data structures
-	mjv_defaultCamera(&mj.cam);
-	mjv_defaultOption(&mj.opt);
-	mjv_defaultScene(&mj.scn);
-	mjr_defaultContext(&mj.con);
-
-	// init simple UI
-	memset(&ui0,0,sizeof(ui0));
-	ui0.spacing = mjui_themeSpacing(0);
-	ui0.color = mjui_themeColor(0);
-	ui0.predicate = NULL;
-	ui0.rectid = 1; // rect[1] をUI用に確保
-	ui0.auxid = 0;
-	// make OpenGL context (later) before building UI so we have font metrics
-
-	// create scene and context
-	mjv_makeScene(mj.m, &mj.scn, 2000);
-	mj.scn.flags[mjCAT_DECOR] = 1;
-	mjr_makeContext(mj.m, &mj.con, mjFONTSCALE_150);
-	build_ui(&mj.con);
+	// Renderer & UI setup
+	MuJoCoRenderer renderer(mj);
+	renderer.init(2000);
+	std::shared_ptr<MuJoCoUI> simui = std::make_shared<MuJoCoUI>();
+	simui->buildDefaultPanels(mj, renderer.context());
 
 	// カメラ初期化: モデル中心とスケールに基づき俯瞰
 	mj_forward(mj.m, mj.d);
@@ -884,36 +888,30 @@ int main(int argc, const char** argv)
 		}
 
 		mjrRect viewport_full = {0, 0, 0, 0};
-		glfwGetFramebufferSize(window, &viewport_full.width, &viewport_full.height);
-		process_ui_events(window, &mj.con, viewport_full.width, viewport_full.height);
-		ui_per_frame(&mj.con, viewport_full.width, viewport_full.height);
-		// Update the scene first (this resets scn.ngeom)
-		mjv_updateScene(mj.m, mj.d, &mj.opt, NULL, &mj.cam, mjCAT_ALL, &mj.scn);
+	glfwGetFramebufferSize(window, &viewport_full.width, &viewport_full.height);
+	simui->processEvents(window, renderer.context(), viewport_full.width, viewport_full.height);
+	simui->perFrameLayout(renderer.context(), viewport_full.width, viewport_full.height);
+	// Update the scene first (this resets scn.ngeom)
+	renderer.beginFrame();
 
 		// Update live EE position variables used by the UI (site name: "site_gripper")
 		{
-			Pose eePose;
-			getEEPose(mj, eePose);
-			vis_ee[0] = eePose.pos[0];
-			vis_ee[1] = eePose.pos[1];
-			vis_ee[2] = eePose.pos[2];
+			Pose eePose; getEEPose(mj, eePose);
+			double tmp[3] = {eePose.pos[0], eePose.pos[1], eePose.pos[2]};
+			simui->setEE(tmp);
 		}
 		{
-			Pose basePose;
-			getBasePose(mj, basePose);
-			vis_base[0] = basePose.pos[0];
-			vis_base[1] = basePose.pos[1];
-			vis_base[2] = basePose.pos[2];
+			Pose basePose; getBasePose(mj, basePose);
+			double tmp[3] = {basePose.pos[0], basePose.pos[1], basePose.pos[2]};
+			simui->setBase(tmp);
 		}
-		{
-			vis_s = s;
-		}
+		simui->setS(s);
 
 		// double dt = mj.d->time - simstart;
 		int ec = EXIT_SUCCESS;
-		if (show_refPath) {
-			ec = drawReferencePath(mj, ps);
-			if (ec != EXIT_SUCCESS) return ec;
+		GeometryPrims prims(renderer.scene(), mj.d);
+		if (simui->showRefPath()) {
+			if (!prims.referencePath(ps)) return EXIT_FAILURE;
 		}
 
 		// draw spheres and the moved path
@@ -931,24 +929,23 @@ int main(int argc, const char** argv)
 //		if (ec != EXIT_SUCCESS) return ec;
 		
 
-		auto drawMovedPath = [](
-			MjSim& mj,
+		auto drawMovedPath = [&prims](
 			const Position& newPos,
-			std::vector<Position>& points, 
+			std::vector<Position>& points,
 			const float rgba[4]) -> int {
 				Position prev = points.back();
 				if((prev - newPos).norm2()>0.0001) {
 					points.push_back(newPos);
 				}
-				return drawPath(mj, points, rgba);
+				return prims.path(points, rgba) ? EXIT_SUCCESS : EXIT_FAILURE;
 			};
 		Pose basePose;
 		getBasePose(mj, basePose);
-		ec = drawMovedPath(mj, basePose.pos, movedBasePoints, CLR_YELLOW);
+		ec = drawMovedPath(basePose.pos, movedBasePoints, CLR_YELLOW);
 		if (ec != EXIT_SUCCESS) return ec;
 		Pose EEPose;
 		getEEPose(mj, EEPose);
-		ec = drawMovedPath(mj, EEPose.pos, movedEEPoints, CLR_GREEN);
+		ec = drawMovedPath(EEPose.pos, movedEEPoints, CLR_GREEN);
 		if (ec != EXIT_SUCCESS) return ec;
 
 //		ec = drawMovedPath(mj, redSphMovedPath, pos_redSph, CLR_RED);
@@ -959,7 +956,7 @@ int main(int argc, const char** argv)
 //		printf("dt: %f, ngeom: %d\n", dt, mj.scn.ngeom);
 
 		// Map UI selection to mj.opt.label
-		switch (label_choice) {
+	switch (simui->labelChoice()) {
 			case 0: mj.opt.label = mjLABEL_NONE; break;
 			case 1: mj.opt.label = mjLABEL_GEOM; break; // Geom
 			case 2: mj.opt.label = mjLABEL_SITE; break; // Site
@@ -969,13 +966,13 @@ int main(int argc, const char** argv)
 			default: mj.opt.label = mjLABEL_GEOM; break;
 		}
 
-		mjv_addGeoms(mj.m, mj.d, &mj.opt, NULL, mjCAT_DECOR, &mj.scn);
+	renderer.addModelDecorations();
 
-		// 3D表示領域 (rect[2]) へ描画
-		mjrRect view3d = uistate.rect[2];
-		mjr_render(view3d, &mj.scn, &mj.con);
-		// UIを最後に描画
-		mjui_render(&ui0, &uistate, &mj.con);
+	// 3D表示領域 (rect[2]) へ描画
+	mjrRect view3d = simui->view3dRect();
+	renderer.render(view3d);
+	// UIを最後に描画
+	simui->render(renderer.context());
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 
