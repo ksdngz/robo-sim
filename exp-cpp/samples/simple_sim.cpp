@@ -224,7 +224,7 @@ public:
 	MuJoCoUI() {
 		memset(&ui_, 0, sizeof(ui_));
 		ui_.spacing = mjui_themeSpacing(0);
-		ui_.color = mjui_themeColor(0);
+		ui_.color = mjui_themeColor(1);
 		ui_.predicate = nullptr;
 		ui_.rectid = 1; // rect[1] is UI
 		ui_.auxid = 0;
@@ -757,21 +757,14 @@ private:
 
 int main(int argc, const char** argv) 
 {
-	printf("kita0\n");	
 	// kinematics
 	std::shared_ptr<Kinematics> kin = std::make_shared<Kinematics>(model_path);
-
-	//  temp
-	Pose pose;
-	getEEPose(mj, pose);
-	pose.show();
 
 	// init GLFW
 	if (!glfwInit()) {
 		mju_error("Could not initialize GLFW");
 	}
 
-	printf("kita1\n");	
 	// create window, make OpenGL context current, request v-sync
 	GLFWwindow* window = glfwCreateWindow(1200, 900, "MuJoCo Simple Sim", NULL, NULL);
 	glfwMakeContextCurrent(window);
@@ -799,16 +792,7 @@ int main(int argc, const char** argv)
 
 	printf("Timestep: %f seconds\n", mj.m->opt.timestep);
 
-//	// Positions Definition
-//	Positions blueSph_wp = {
-//		{0.0, 0.0, 0.0},
-//		{1.0, 0.0, 0.0},
-//		{1.0, 0.5, 0.2},
-//		{1.0, 1.5, 1.2},
-//		{1.0, 1.5, 2.2}
-//	};
 	Positions refPath;
-
 	// Create a SimplePathReader instance
 	// Path blueSphPath;
 	// generatePath(blueSph_wp, blueSphPath);
